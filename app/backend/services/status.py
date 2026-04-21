@@ -161,10 +161,6 @@ def calcular_processo_completo(processo: dict, db) -> dict:
 
     st_cad   = status_etapa(prev_cad,   fim_cadastro,    nao_aplica_cad)
 
-    # Status total
-    st_total = status_total([st_dist, st_valid, st_jur, st_assn, st_cad])
-    resp = responsabilidade(st_total, [st_dist, st_valid, st_jur, st_assn, st_cad])
-
     # Prazo total (soma dos prazos aplicáveis)
     prazos_aplicaveis = [prazo_dist]
     if not nao_aplica_valid:  prazos_aplicaveis.append(prazo_valid)
@@ -187,6 +183,43 @@ def calcular_processo_completo(processo: dict, db) -> dict:
     datas_conclusao = [d for d in [data_atrib, data_validar, fim_juridico, fim_assinatura, fim_cadastro] if d]
     data_conclusao_final = max(datas_conclusao) if datas_conclusao else None
     tempo_total = count_dias_uteis(data_entrada, data_conclusao_final, feriados)
+
+    # ── STATUS TOTAL ─────────────────────────────────────────────────────────
+    # Equivalente à coluna AN da planilha: compara data_conclusao_final vs
+    # prev_fim_total (não é simples agregação de status por etapa).
+    #
+    # Lógica:
+    #  1. Se houver PENDÊNCIAS em qualquer etapa → EM ABERTO FORA DO PRAZO
+    #  2. Se a última etapa aplicável foi concluída:
+    #       data_conclusao_final <= prev_fim_total → REALIZADO NO PRAZO
+    #       data_conclusao_final >  prev_fim_total → REALIZADO FORA DO PRAZO
+    #  3. Se processo ainda está em aberto: compara hoje vs prev_fim_total
+
+    _tem_pend = any(s == PENDENCIAS for s in [st_valid, st_jur, st_assn, st_cad] if s is not None)
+
+    # Última etapa aplicável concluída?
+    if not nao_aplica_cad:
+        _concluido = fim_cadastro is not None
+    elif not nao_aplica_assn:
+        _concluido = fim_assinatura is not None
+    elif not nao_aplica_jur:
+        _concluido = fim_juridico is not None
+    elif not nao_aplica_valid:
+        _concluido = data_validar is not None
+    else:
+        _concluido = data_atrib is not None
+
+    if prev_fim_total is None:
+        st_total = None
+    elif _tem_pend:
+        st_total = EM_ABERTO_FORA_DO_PRAZO
+    elif _concluido and data_conclusao_final:
+        st_total = REALIZADO_NO_PRAZO if data_conclusao_final <= prev_fim_total else REALIZADO_FORA_DO_PRAZO
+    else:
+        hoje = date.today()
+        st_total = EM_ABERTO_NO_PRAZO if hoje <= prev_fim_total else EM_ABERTO_FORA_DO_PRAZO
+
+    resp = responsabilidade(st_total, [st_dist, st_valid, st_jur, st_assn, st_cad])
 
     return {
         "calculos": {
