@@ -66,11 +66,12 @@ def status_etapa(
 def status_total(status_list: list[Optional[str]]) -> Optional[str]:
     """
     Equivalente à coluna AN. Agrega o status de todas as etapas.
+    PENDÊNCIAS em qualquer etapa → EM ABERTO FORA DO PRAZO no total.
     """
     validos = [s for s in status_list if s and s != NA]
     if not validos:
         return None
-    if any(s == EM_ABERTO_FORA_DO_PRAZO for s in validos):
+    if any(s in (EM_ABERTO_FORA_DO_PRAZO, PENDENCIAS) for s in validos):
         return EM_ABERTO_FORA_DO_PRAZO
     if any(s == REALIZADO_FORA_DO_PRAZO for s in validos):
         return REALIZADO_FORA_DO_PRAZO
@@ -143,8 +144,21 @@ def calcular_processo_completo(processo: dict, db) -> dict:
     # Status por etapa
     st_dist  = status_etapa(prev_dist,  data_atrib,      False)
     st_valid = status_etapa(prev_valid, data_validar,    nao_aplica_valid)
-    st_jur   = status_etapa(prev_jur,   fim_juridico,    nao_aplica_jur)
-    st_assn  = status_etapa(prev_assn,  fim_assinatura,  nao_aplica_assn)
+
+    # Jurídico: PENDÊNCIAS quando aplica mas não iniciou e processo avançou além
+    if not nao_aplica_jur and inicio_juridico is None:
+        _alem_jur = data_atrib_assn or fim_assinatura or data_atrib_cad or fim_cadastro
+        st_jur = PENDENCIAS if _alem_jur else None
+    else:
+        st_jur = status_etapa(prev_jur, fim_juridico, nao_aplica_jur)
+
+    # Assinatura: PENDÊNCIAS quando aplica mas não atribuída e cadastro avançou
+    if not nao_aplica_assn and data_atrib_assn is None:
+        _alem_assn = data_atrib_cad or fim_cadastro
+        st_assn = PENDENCIAS if _alem_assn else None
+    else:
+        st_assn = status_etapa(prev_assn, fim_assinatura, nao_aplica_assn)
+
     st_cad   = status_etapa(prev_cad,   fim_cadastro,    nao_aplica_cad)
 
     # Status total
