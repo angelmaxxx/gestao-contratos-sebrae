@@ -1,0 +1,8 @@
+fastapi==0.136.0
+uvicorn[standard]==0.44.0
+supabase==2.28.3
+bcrypt==5.0.0
+python-jose[cryptography]==3.5.0
+pydantic==2.13.3
+pydantic-settings==2.14.0
+httpx==0.28.1
