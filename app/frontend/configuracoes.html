@@ -129,17 +129,28 @@
 
   <!-- Tab: Prazos de Validação por Demanda -->
   <div id="tab-prazos-validacao" class="tab-content">
-    <div class="form-card" style="max-width:680px">
+    <div class="form-card" style="max-width:720px">
       <div class="form-section-title">📋 Prazos de Validação por Tipo de Demanda (dias úteis)</div>
       <div class="form-body">
-        <div style="background:#EBF5FB;border-left:4px solid #2196F3;border-radius:6px;
-                    padding:12px 16px;margin-bottom:20px;font-size:12px;color:#333;line-height:1.6">
-          <strong style="color:#1565C0">ℹ Informação</strong><br>
-          Define quantos dias úteis cada tipo de demanda tem para passar pela etapa de <strong>Validação</strong>.
-          Edite o valor e clique em <strong>💾</strong> para salvar individualmente,
-          ou use <strong>💾 Salvar Todos</strong> para gravar todas as alterações de uma vez.
+
+        <!-- Adicionar nova demanda -->
+        <div style="background:#F1F8E9;border:1px solid #AED581;border-radius:8px;padding:14px 16px;margin-bottom:18px">
+          <div style="font-size:12px;font-weight:700;color:#33691E;margin-bottom:10px">➕ Nova Demanda</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <input type="text" id="nova-pv-nome" placeholder="Nome da demanda (ex: RESCISÃO)"
+                   style="flex:1;min-width:200px;border:1px solid #ccc;border-radius:4px;
+                          padding:7px 10px;font-size:12px;text-transform:uppercase">
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" id="nova-pv-dias" value="5" min="1" max="365"
+                     style="width:68px;border:1px solid #ccc;border-radius:4px;
+                            padding:7px 8px;font-size:13px;font-weight:700;text-align:center">
+              <span style="font-size:11px;color:#666">d.u.</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="adicionarDemandaPrazo()">➕ Adicionar</button>
+          </div>
         </div>
 
+        <!-- Barra de ferramentas -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
           <input type="text" id="filtro-prazos-val" placeholder="🔍 Filtrar demanda..."
                  oninput="filtrarPrazosValidacao()"
@@ -147,13 +158,14 @@
           <button class="btn btn-success btn-sm" onclick="salvarTodosPrazosValidacao()">💾 Salvar Todos</button>
         </div>
 
-        <div style="overflow-y:auto;max-height:520px;border:1px solid #e0e0e0;border-radius:6px">
+        <!-- Tabela -->
+        <div style="overflow-y:auto;max-height:480px;border:1px solid #e0e0e0;border-radius:6px">
           <table style="width:100%;border-collapse:collapse" id="tabela-prazos-val">
             <thead>
               <tr style="background:var(--azul-sebrae);color:#fff;position:sticky;top:0;z-index:1">
                 <th style="padding:10px 14px;text-align:left;font-size:12px">Tipo de Demanda</th>
-                <th style="padding:10px 14px;text-align:center;font-size:12px;width:130px">Dias Úteis</th>
-                <th style="padding:10px 14px;text-align:center;font-size:12px;width:70px">Ação</th>
+                <th style="padding:10px 14px;text-align:center;font-size:12px;width:140px">Dias Úteis</th>
+                <th style="padding:10px 14px;text-align:center;font-size:12px;width:90px">Ações</th>
               </tr>
             </thead>
             <tbody id="tbody-prazos-val">
@@ -332,8 +344,9 @@
       tb.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:24px;color:#999">Nenhuma demanda encontrada.</td></tr>`;
       return;
     }
-    tb.innerHTML = lista.map((p, i) => `
-      <tr style="border-bottom:1px solid #f0f0f0;transition:background .12s" onmouseover="this.style.background='#F8FBFF'" onmouseout="this.style.background=''">
+    tb.innerHTML = lista.map(p => `
+      <tr style="border-bottom:1px solid #f0f0f0;transition:background .12s"
+          onmouseover="this.style.background='#F8FBFF'" onmouseout="this.style.background=''">
         <td style="padding:9px 14px;font-size:12px;font-weight:500;color:#333">${p.nome}</td>
         <td style="padding:9px 14px;text-align:center">
           <input type="number" id="pv-${p.demanda_id}" value="${p.dias_uteis}"
@@ -344,12 +357,14 @@
                         background:#EBF5FB;outline:none">
           <span style="font-size:11px;color:#888;margin-left:4px">d.u.</span>
         </td>
-        <td style="padding:9px 14px;text-align:center">
+        <td style="padding:9px 14px;text-align:center;white-space:nowrap">
           <button onclick="salvarPrazoValidacao(${p.demanda_id})"
                   id="btn-pv-${p.demanda_id}"
                   title="Salvar este prazo"
-                  style="background:none;border:none;cursor:pointer;font-size:18px;opacity:.4"
-                  title="Salvar">💾</button>
+                  style="background:none;border:none;cursor:pointer;font-size:17px;opacity:.4;margin-right:4px">💾</button>
+          <button onclick="excluirDemandaPrazo(${p.demanda_id},'${p.nome.replace(/'/g,"\\'")}')"
+                  title="Excluir esta demanda"
+                  style="background:none;border:none;cursor:pointer;font-size:17px;color:#C00000">🗑</button>
         </td>
       </tr>`).join("");
   }
@@ -383,6 +398,36 @@
       if (item) item.dias_uteis = dias;
       toast("Prazo salvo!", "success");
     } catch (e) { toast("Erro ao salvar: " + e.message, "error"); }
+  }
+
+  async function adicionarDemandaPrazo() {
+    const nomeEl = document.getElementById("nova-pv-nome");
+    const diasEl = document.getElementById("nova-pv-dias");
+    const nome   = nomeEl.value.trim().toUpperCase();
+    const dias   = parseInt(diasEl.value);
+    if (!nome) { toast("Digite o nome da demanda.", "error"); return; }
+    if (!dias || dias < 1) { toast("Prazo deve ser pelo menos 1 dia útil.", "error"); return; }
+    try {
+      // 1. Cria a demanda (também cria config de etapas padrão)
+      const nova = await apiFetch("/config/demandas", {
+        method: "POST", body: JSON.stringify({ nome })
+      });
+      // 2. Define o prazo de validação
+      await api.atualizarPrazoValidacao(nova.id, dias);
+      nomeEl.value = "";
+      diasEl.value = "5";
+      toast(`Demanda "${nome}" adicionada com prazo de ${dias} d.u.!`, "success");
+      await carregarPrazosValidacao();
+    } catch (e) { toast("Erro ao adicionar: " + e.message, "error"); }
+  }
+
+  async function excluirDemandaPrazo(id, nome) {
+    if (!confirm(`Excluir a demanda "${nome}"?\n\nEla será desativada e não aparecerá em novos processos.`)) return;
+    try {
+      await apiFetch(`/config/demandas/${id}`, { method: "DELETE" });
+      toast(`Demanda "${nome}" excluída.`, "success");
+      await carregarPrazosValidacao();
+    } catch (e) { toast("Erro ao excluir: " + e.message, "error"); }
   }
 
   async function salvarTodosPrazosValidacao() {
