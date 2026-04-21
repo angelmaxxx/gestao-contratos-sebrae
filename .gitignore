@@ -1,0 +1,27 @@
+# ⚠️ NUNCA subir — contém senhas e chaves
+app/backend/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+.venv/
+*.egg-info/
+.Python
+
+# Editor
+.vscode/
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Arquivos que não precisam ir para produção
+*.xlsm
+*.xlsx
+railway.json
+Procfile

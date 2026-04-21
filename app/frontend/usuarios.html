@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários — SEBRAE</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()">Sair</button>
+  </div>
+</div>
+<nav class="navbar">
+  <a href="/dashboard.html"     data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"     data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"      data-page="usuarios"      class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"      data-page="feriados"      class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <h1>👥 Gestão de Usuários</h1>
+      <p>Administração de acesso ao sistema</p>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalNovo()">➕ Novo Usuário</button>
+  </div>
+
+  <div class="table-wrap" style="border-radius:8px;border:1px solid var(--cinza-borda)">
+    <table>
+      <thead>
+        <tr>
+          <th>Login</th>
+          <th>Nome Completo</th>
+          <th>Perfil</th>
+          <th>Status</th>
+          <th>Último Acesso</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-usuarios">
+        <tr><td colspan="6" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Modal Novo/Editar Usuário -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-titulo">Novo Usuário</span>
+      <button onclick="fecharModal()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="alert-modal"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Login <span class="required">*</span></label>
+          <input type="text" id="m-login" placeholder="login do usuário">
+        </div>
+        <div class="form-group">
+          <label>Nome Completo <span class="required">*</span></label>
+          <input type="text" id="m-nome" placeholder="Nome completo">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Perfil <span class="required">*</span></label>
+          <select id="m-perfil">
+            <option value="usuario">Usuário</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="m-senha-label">Senha <span class="required">*</span></label>
+          <input type="password" id="m-senha" placeholder="Senha de acesso">
+          <small style="color:#888;font-size:11px" id="m-senha-hint"></small>
+        </div>
+      </div>
+      <div class="form-group" id="wrap-ativo" style="display:none">
+        <label>Status</label>
+        <select id="m-ativo">
+          <option value="true">Ativo</option>
+          <option value="false">Inativo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-success" id="btn-salvar-usuario" onclick="salvarUsuario()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+  if (!isAdmin()) window.location.href = "/dashboard.html";
+
+  let _editId = null;
+
+  async function carregar() {
+    const lista = await api.listarUsuarios();
+    const tb = document.getElementById("tbody-usuarios");
+    tb.innerHTML = lista.map(u => `
+      <tr>
+        <td><strong>${u.login}</strong></td>
+        <td>${u.nome}</td>
+        <td><span class="badge ${u.perfil === 'admin' ? 'admin' : 'usuario'}">
+          ${u.perfil === 'admin' ? '🔑 Admin' : '👤 Usuário'}
+        </span></td>
+        <td><span class="badge ${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'ativo' : 'inativo'}</span></td>
+        <td>${formatDatetime(u.ultimo_acesso)}</td>
+        <td class="acoes">
+          <button class="btn btn-sm btn-primary btn-icon" onclick="abrirModalEditar(${JSON.stringify(u).replace(/"/g,'&quot;')})" title="Editar">✏️</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  function abrirModalNovo() {
+    _editId = null;
+    document.getElementById("modal-titulo").textContent = "Novo Usuário";
+    document.getElementById("m-login").value  = "";
+    document.getElementById("m-nome").value   = "";
+    document.getElementById("m-perfil").value = "usuario";
+    document.getElementById("m-senha").value  = "";
+    document.getElementById("m-senha-label").innerHTML = "Senha <span class='required'>*</span>";
+    document.getElementById("m-senha-hint").textContent = "";
+    document.getElementById("m-login").disabled = false;
+    document.getElementById("wrap-ativo").style.display = "none";
+    document.getElementById("alert-modal").innerHTML = "";
+    document.getElementById("modal-usuario").classList.add("open");
+  }
+
+  function abrirModalEditar(u) {
+    _editId = u.id;
+    document.getElementById("modal-titulo").textContent = "Editar Usuário";
+    document.getElementById("m-login").value  = u.login;
+    document.getElementById("m-nome").value   = u.nome;
+    document.getElementById("m-perfil").value = u.perfil;
+    document.getElementById("m-senha").value  = "";
+    document.getElementById("m-senha-label").innerHTML = "Nova Senha";
+    document.getElementById("m-senha-hint").textContent = "Deixe em branco para manter a senha atual";
+    document.getElementById("m-login").disabled = true;
+    document.getElementById("m-ativo").value = String(u.ativo);
+    document.getElementById("wrap-ativo").style.display = "";
+    document.getElementById("alert-modal").innerHTML = "";
+    document.getElementById("modal-usuario").classList.add("open");
+  }
+
+  function fecharModal() {
+    document.getElementById("modal-usuario").classList.remove("open");
+  }
+
+  async function salvarUsuario() {
+    const btn = document.getElementById("btn-salvar-usuario");
+    btn.disabled = true;
+
+    const dados = {
+      login:  document.getElementById("m-login").value.trim(),
+      nome:   document.getElementById("m-nome").value.trim(),
+      perfil: document.getElementById("m-perfil").value,
+      senha:  document.getElementById("m-senha").value,
+    };
+
+    try {
+      if (_editId) {
+        const upd = { nome: dados.nome, perfil: dados.perfil,
+                      ativo: document.getElementById("m-ativo").value === "true" };
+        if (dados.senha) upd.senha = dados.senha;
+        await api.atualizarUsuario(_editId, upd);
+        toast("Usuário atualizado!", "success");
+      } else {
+        if (!dados.senha) {
+          document.getElementById("alert-modal").innerHTML =
+            `<div class="alert alert-danger">Senha é obrigatória para novo usuário.</div>`;
+          btn.disabled = false;
+          return;
+        }
+        await api.criarUsuario(dados);
+        toast("Usuário criado!", "success");
+      }
+      fecharModal();
+      carregar();
+    } catch (e) {
+      document.getElementById("alert-modal").innerHTML =
+        `<div class="alert alert-danger">⚠ ${e.message}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  carregar();
+</script>
+</body>
+</html>

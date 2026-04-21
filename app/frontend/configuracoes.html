@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações — SEBRAE</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <style>
+    .tabs { display:flex; gap:0; border-bottom:2px solid var(--azul-sebrae); margin-bottom:16px; flex-wrap:wrap; }
+    .tab  { padding:8px 16px; cursor:pointer; font-size:12px; font-weight:600;
+            color:#666; border:1px solid #ddd; border-bottom:none; background:#f5f5f5;
+            margin-right:2px; border-radius:4px 4px 0 0; transition:all .15s; }
+    .tab.active { background:var(--azul-sebrae); color:#fff; border-color:var(--azul-sebrae); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .lista-config { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .chip { display:inline-flex; align-items:center; gap:6px;
+            background:#EBF5FB; border:1px solid #AED6F1; border-radius:16px;
+            padding:4px 10px; font-size:12px; }
+    .chip button { background:none; border:none; cursor:pointer; color:#C00000;
+                   font-size:14px; line-height:1; padding:0; }
+    .prazo-row { display:flex; align-items:center; gap:12px;
+                 padding:10px 0; border-bottom:1px solid #EEE; }
+    .prazo-row label { flex:1; font-weight:600; font-size:13px; }
+    .prazo-row input { width:80px; border:1px solid #ccc; border-radius:4px;
+                       padding:5px 8px; font-size:13px; text-align:center; }
+    .matriz-table th, .matriz-table td { padding:5px 8px; font-size:11px; text-align:center; border:1px solid #ddd; }
+    .matriz-table th { background:var(--azul-sebrae); color:#fff; white-space:nowrap; }
+    .matriz-table td:first-child { text-align:left; font-weight:600; background:#f9f9f9; white-space:nowrap; }
+    .aplica    { color:#1E8449; font-weight:700; }
+    .nao-aplica { color:#C00000; font-weight:700; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()">Sair</button>
+  </div>
+</div>
+<nav class="navbar">
+  <a href="/dashboard.html"     data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"     data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"      data-page="usuarios"      class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"      data-page="feriados"      class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header">
+    <h1>⚙ Configurações do Sistema</h1>
+    <p>Gerencie listas, prazos e regras de workflow</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="mudarTab('unidades')">🏢 Unidades</div>
+    <div class="tab" onclick="mudarTab('atribuidos')">👤 Atribuídos</div>
+    <div class="tab" onclick="mudarTab('distribuidores')">📤 Distribuidores</div>
+    <div class="tab" onclick="mudarTab('prazos')">⏱ Prazos</div>
+    <div class="tab" onclick="mudarTab('matriz')">📊 Demandas × Etapas</div>
+  </div>
+
+  <!-- Tab: Unidades -->
+  <div id="tab-unidades" class="tab-content active">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="text" id="nova-unidade" placeholder="Nome da nova unidade"
+             style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:220px">
+      <button class="btn btn-primary btn-sm" onclick="adicionarItem('unidades','nova-unidade','unidade_id')">+ Adicionar</button>
+    </div>
+    <div class="lista-config" id="lista-unidades"></div>
+  </div>
+
+  <!-- Tab: Atribuídos -->
+  <div id="tab-atribuidos" class="tab-content">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="text" id="novo-atribuido" placeholder="Nome completo"
+             style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:220px">
+      <button class="btn btn-primary btn-sm" onclick="adicionarItem('atribuidos','novo-atribuido','atribuido_id')">+ Adicionar</button>
+    </div>
+    <div class="lista-config" id="lista-atribuidos"></div>
+  </div>
+
+  <!-- Tab: Distribuidores -->
+  <div id="tab-distribuidores" class="tab-content">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="text" id="novo-distribuidor" placeholder="Nome do distribuidor/validador"
+             style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:220px">
+      <button class="btn btn-primary btn-sm" onclick="adicionarItem('distribuidores','novo-distribuidor','dist_id')">+ Adicionar</button>
+    </div>
+    <div class="lista-config" id="lista-distribuidores"></div>
+  </div>
+
+  <!-- Tab: Prazos -->
+  <div id="tab-prazos" class="tab-content">
+    <div class="form-card" style="max-width:480px">
+      <div class="form-section-title">⏱ Prazos Fixos por Etapa (dias úteis)</div>
+      <div class="form-body">
+        <div class="alert alert-info" style="margin-bottom:12px">
+          ℹ Os prazos de <strong>Validação</strong> são configurados por tipo de demanda
+          na aba <em>Demandas × Etapas</em>. Aqui ficam os prazos fixos das demais etapas.
+        </div>
+        <div id="lista-prazos"></div>
+        <div style="margin-top:14px;text-align:right">
+          <button class="btn btn-success" onclick="salvarPrazos()">💾 Salvar Prazos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Demandas × Etapas -->
+  <div id="tab-matriz" class="tab-content">
+    <div class="alert alert-info" style="margin-bottom:12px">
+      ℹ Esta tabela define quais etapas se aplicam a cada tipo de demanda.
+      Clique em uma célula para alternar entre <strong>APLICA</strong> e <strong>NÃO APLICA</strong>.
+    </div>
+
+    <!-- Nova Demanda -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" id="nova-demanda-nome" placeholder="Nome da nova demanda (ex: RESCISÃO)"
+             style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:280px;text-transform:uppercase">
+      <button class="btn btn-primary btn-sm" onclick="adicionarDemanda()">➕ Nova Demanda</button>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="matriz-table" id="tabela-matriz">
+        <thead>
+          <tr>
+            <th style="min-width:200px">Demanda</th>
+            <th>Data Validar</th><th>Validador</th>
+            <th>Iníc. Jurídico</th><th>Fim Jurídico</th>
+            <th>Atrib. Assin.</th><th>Dt. Atrib. Assin.</th><th>Fim Assin.</th>
+            <th>Atrib. Cad.</th><th>Dt. Atrib. Cad.</th><th>Fim Cadastro</th>
+            <th style="background:#B71C1C">Excluir</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-matriz">
+          <tr><td colspan="12" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+  if (!isAdmin()) window.location.href = "/dashboard.html";
+
+  const ETAPAS_ORDEM = [
+    'DATA_VALIDAR','VALIDADOR',
+    'INICIO_JURIDICO','FIM_JURIDICO',
+    'ATRIB_ASSINATURA','DATA_ATRIB_ASSINATURA','FIM_ASSINATURA',
+    'ATRIB_CADASTRO','DATA_ATRIB_CADASTRO','FIM_CADASTRO',
+  ];
+
+  const ETAPA_LABEL = {
+    DATA_VALIDAR:'Data Validar', VALIDADOR:'Validador',
+    INICIO_JURIDICO:'Iníc. Jurídico', FIM_JURIDICO:'Fim Jurídico',
+    ATRIB_ASSINATURA:'Atrib. Assin.', DATA_ATRIB_ASSINATURA:'Dt. Atrib. Assin.',
+    FIM_ASSINATURA:'Fim Assin.', ATRIB_CADASTRO:'Atrib. Cad.',
+    DATA_ATRIB_CADASTRO:'Dt. Atrib. Cad.', FIM_CADASTRO:'Fim Cadastro',
+  };
+
+  function mudarTab(nome) {
+    document.querySelectorAll(".tab").forEach((t,i) => {
+      const ids = ["unidades","atribuidos","distribuidores","prazos","matriz"];
+      t.classList.toggle("active", ids[i] === nome);
+    });
+    document.querySelectorAll(".tab-content").forEach(c => {
+      c.classList.toggle("active", c.id === `tab-${nome}`);
+    });
+    if (nome === "matriz") carregarMatriz();
+  }
+
+  // ── Listas (Chips) ──────────────────────────────────────────
+
+  async function carregarListas() {
+    const [unidades, atribuidos, distribuidores, prazos] = await Promise.all([
+      api.unidades(), api.atribuidos(), api.distribuidores(), api.prazos()
+    ]);
+    renderChips("lista-unidades",      unidades,      "unidades");
+    renderChips("lista-atribuidos",    atribuidos,    "atribuidos");
+    renderChips("lista-distribuidores",distribuidores,"distribuidores");
+    renderPrazos(prazos.fixos);
+  }
+
+  function renderChips(containerId, lista, tipo) {
+    document.getElementById(containerId).innerHTML = lista.map(item => `
+      <div class="chip" id="chip-${tipo}-${item.id}">
+        ${item.nome || item.valor}
+        <button onclick="removerItem('${tipo}', ${item.id})" title="Remover">✕</button>
+      </div>`).join("");
+  }
+
+  async function adicionarItem(tipo, inputId, _) {
+    const input = document.getElementById(inputId);
+    const nome  = input.value.trim().toUpperCase();
+    if (!nome) return;
+    try {
+      const fn = tipo === "unidades"      ? api.criarUnidade  :
+                 tipo === "atribuidos"    ? api.criarAtribuido :
+                 /* distribuidores */       api.criarDistribuidor;
+      // Esses endpoints precisam existir no api.js — adicionamos inline:
+      await apiFetch(`/config/${tipo}`, { method:"POST", body: JSON.stringify({ nome }) });
+      input.value = "";
+      toast(`${nome} adicionado!`, "success");
+      carregarListas();
+    } catch (e) { toast("Erro: " + e.message, "error"); }
+  }
+
+  async function removerItem(tipo, id) {
+    if (!confirm("Remover este item?")) return;
+    try {
+      await apiFetch(`/config/${tipo}/${id}`, { method:"DELETE" });
+      toast("Item removido.", "success");
+      carregarListas();
+    } catch (e) { toast("Erro: " + e.message, "error"); }
+  }
+
+  // ── Prazos ──────────────────────────────────────────────────
+
+  const ETAPA_NOME = {
+    DISTRIBUICAO: "Distribuição", JURIDICO: "Jurídico",
+    ASSINATURA:   "Assinatura",   CADASTRO:  "Cadastro",
+  };
+
+  function renderPrazos(fixos) {
+    document.getElementById("lista-prazos").innerHTML = fixos.map(p => `
+      <div class="prazo-row">
+        <label>${ETAPA_NOME[p.etapa] || p.etapa}</label>
+        <input type="number" id="prazo-${p.etapa}" value="${p.dias_uteis}" min="1" max="90">
+        <span style="font-size:12px;color:#666">dias úteis</span>
+      </div>`).join("");
+  }
+
+  async function salvarPrazos() {
+    const etapas = ["DISTRIBUICAO","JURIDICO","ASSINATURA","CADASTRO"];
+    try {
+      await Promise.all(etapas.map(e => {
+        const val = parseInt(document.getElementById(`prazo-${e}`).value);
+        return apiFetch("/config/prazos", { method:"PUT", body: JSON.stringify({ etapa:e, dias_uteis:val }) });
+      }));
+      toast("Prazos salvos com sucesso!", "success");
+    } catch (e) { toast("Erro ao salvar prazos: " + e.message, "error"); }
+  }
+
+  // ── Matriz Demanda × Etapa ──────────────────────────────────
+
+  async function carregarMatriz() {
+    const tb = document.getElementById("tbody-matriz");
+    tb.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>`;
+    try {
+      // Uma única requisição busca toda a matriz
+      const linhas = await apiFetch("/config/matriz");
+
+      if (!linhas.length) {
+        tb.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:24px;color:#999">Nenhuma demanda cadastrada.</td></tr>`;
+        return;
+      }
+
+      tb.innerHTML = linhas.map(d => {
+        const cfg = d.etapas || {};
+        const cells = ETAPAS_ORDEM.map(e => {
+          const aplica = cfg[e];
+          return `<td class="${aplica ? 'aplica' : 'nao-aplica'}"
+                      onclick="toggleEtapa(${d.id},'${e}',${!aplica})"
+                      style="cursor:pointer" title="Clique para alternar entre APLICA / NÃO APLICA">
+                    ${aplica ? '✔ APLICA' : '✖ NÃO'}
+                  </td>`;
+        }).join("");
+        const nomeEsc = d.nome.replace(/'/g, "\\'");
+        return `<tr>
+          <td>${d.nome}</td>
+          ${cells}
+          <td style="text-align:center">
+            <button onclick="excluirDemanda(${d.id},'${nomeEsc}',this)"
+                    style="background:none;border:none;cursor:pointer;color:#C00000;font-size:16px"
+                    title="Desativar demanda">🗑</button>
+          </td>
+        </tr>`;
+      }).join("");
+    } catch (e) {
+      tb.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:24px;color:#C00">Erro ao carregar: ${e.message}</td></tr>`;
+    }
+  }
+
+  async function toggleEtapa(demandaId, etapa, novoValor) {
+    try {
+      await apiFetch(`/config/demandas/${demandaId}/etapas`, {
+        method: "PUT",
+        body: JSON.stringify({ [etapa]: novoValor })
+      });
+      toast("Configuração atualizada.", "success");
+      carregarMatriz();
+    } catch (e) { toast("Erro: " + e.message, "error"); }
+  }
+
+  async function adicionarDemanda() {
+    const input = document.getElementById("nova-demanda-nome");
+    const nome  = input.value.trim().toUpperCase();
+    if (!nome) { toast("Digite o nome da demanda.", "error"); return; }
+    try {
+      await apiFetch("/config/demandas", { method: "POST", body: JSON.stringify({ nome }) });
+      input.value = "";
+      toast(`Demanda "${nome}" criada com todas as etapas habilitadas!`, "success");
+      carregarMatriz();
+    } catch (e) { toast("Erro: " + e.message, "error"); }
+  }
+
+  async function excluirDemanda(id, nome, btn) {
+    if (!confirm(`Desativar a demanda "${nome}"?\n\nEla não aparecerá mais em novos processos.`)) return;
+    try {
+      btn.disabled = true;
+      await apiFetch(`/config/demandas/${id}`, { method: "DELETE" });
+      toast(`Demanda "${nome}" desativada.`, "success");
+      carregarMatriz();
+    } catch (e) {
+      btn.disabled = false;
+      toast("Erro: " + e.message, "error");
+    }
+  }
+
+  carregarListas();
+</script>
+</body>
+</html>

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Processo — SEBRAE</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()">Sair</button>
+  </div>
+</div>
+<nav class="navbar">
+  <a href="/dashboard.html"     data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"     data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"      data-page="usuarios"      class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"      data-page="feriados"      class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <h1 id="page-title">➕ Novo Processo</h1>
+      <p>Cadastro de novo processo contratual</p>
+    </div>
+    <a href="/processos.html" class="btn btn-outline">← Voltar</a>
+  </div>
+
+  <div id="alert-form"></div>
+
+  <!-- ── DADOS GERAIS ── -->
+  <div class="form-card">
+    <div class="form-section-title">≡ DADOS GERAIS</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Número do Processo <span class="required">*</span></label>
+          <input type="text" id="numero_processo" placeholder="Ex: 2026/NA/0001">
+        </div>
+        <div class="form-group">
+          <label>Data de Entrada <span class="required">*</span></label>
+          <input type="date" id="data_entrada">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Unidade <span class="required">*</span></label>
+          <select id="unidade_id"><option value="">Selecione…</option></select>
+        </div>
+        <div class="form-group">
+          <label>Demanda <span class="required">*</span></label>
+          <select id="demanda_id" onchange="onDemandaChange()"><option value="">Selecione…</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Instrumento</label>
+          <input type="text" id="instrumento" placeholder="Tipo de instrumento">
+        </div>
+        <div class="form-group">
+          <label>Contratada</label>
+          <input type="text" id="contratada" placeholder="Nome da empresa contratada">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Distribuidor <span class="required">*</span></label>
+          <select id="distribuidor_id"><option value="">Selecione…</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tem Garantia?</label>
+          <select id="tem_garantia"><option value="">Selecione…</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DISTRIBUIÇÃO ── -->
+  <div class="form-card">
+    <div class="form-section-title">≡ ETAPA: DISTRIBUIÇÃO</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data de Atribuição</label>
+          <input type="date" id="data_atribuicao" onchange="onAtribChange()">
+        </div>
+        <div class="form-group">
+          <label>Atribuído Para</label>
+          <select id="atribuido_para_id" onchange="onAtribChange()">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
+      </div>
+      <!-- Info de prazo (admin) -->
+      <div id="info-distribuicao" class="admin-info" style="display:none">
+        <small style="color:#666">
+          Prazo: <strong id="prazo-dist">3 d.u.</strong> |
+          Prev. Fim: <strong id="prev-dist">—</strong> |
+          Status: <span id="st-dist">—</span>
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VALIDAÇÃO ── -->
+  <div class="form-card" id="card-validacao">
+    <div class="form-section-title validacao">≡ ETAPA: VALIDAÇÃO</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data Validar</label>
+          <div id="wrap-data_validar">
+            <input type="date" id="data_validar">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Validador</label>
+          <div id="wrap-validador_id">
+            <select id="validador_id"><option value="">Selecione…</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── JURÍDICO ── -->
+  <div class="form-card" id="card-juridico">
+    <div class="form-section-title juridico">≡ ETAPA: JURÍDICO</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Início Jurídico</label>
+          <div id="wrap-inicio_juridico">
+            <input type="date" id="inicio_juridico">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fim Jurídico</label>
+          <div id="wrap-fim_juridico">
+            <input type="date" id="fim_juridico">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ASSINATURA ── -->
+  <div class="form-card" id="card-assinatura">
+    <div class="form-section-title assinatura">≡ ETAPA: ASSINATURA</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Atribuição Assinatura</label>
+          <div id="wrap-atrib_assinatura_id">
+            <select id="atrib_assinatura_id"><option value="">Selecione…</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Data Atrib. Assinatura</label>
+          <div id="wrap-data_atrib_assinatura">
+            <input type="date" id="data_atrib_assinatura">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fim Assinatura</label>
+          <div id="wrap-fim_assinatura">
+            <input type="date" id="fim_assinatura">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CADASTRO ── -->
+  <div class="form-card" id="card-cadastro">
+    <div class="form-section-title cadastro">≡ ETAPA: CADASTRO</div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Atribuição Cadastro</label>
+          <div id="wrap-atrib_cadastro_id">
+            <select id="atrib_cadastro_id"><option value="">Selecione…</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Data Atrib. Cadastro</label>
+          <div id="wrap-data_atrib_cadastro">
+            <input type="date" id="data_atrib_cadastro">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fim Cadastro</label>
+          <div id="wrap-fim_cadastro">
+            <input type="date" id="fim_cadastro">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMENTÁRIO ── -->
+  <div class="form-card">
+    <div class="form-section-title">≡ COMENTÁRIO</div>
+    <div class="form-body">
+      <div class="form-group">
+        <textarea id="comentario" rows="3" placeholder="Observações…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CAMPOS CALCULADOS (somente admin, modo visualização) ── -->
+  <div class="form-card" id="card-calculos" style="display:none">
+    <div class="form-section-title" style="background:#37474F">≡ DADOS CALCULADOS (Admin)</div>
+    <div class="form-body">
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead>
+            <tr style="background:#ECEFF1">
+              <th style="padding:6px 10px;text-align:left;border-bottom:2px solid #CFD8DC">Etapa</th>
+              <th style="padding:6px 10px;border-bottom:2px solid #CFD8DC">Prazo (d.u.)</th>
+              <th style="padding:6px 10px;border-bottom:2px solid #CFD8DC">Prev. Fim</th>
+              <th style="padding:6px 10px;border-bottom:2px solid #CFD8DC">Status</th>
+              <th style="padding:6px 10px;border-bottom:2px solid #CFD8DC">Tempo Real</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-calculos"></tbody>
+          <tfoot id="tfoot-calculos"></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botões -->
+  <div id="form-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:24px">
+    <a href="/processos.html" class="btn btn-outline">Cancelar</a>
+    <button class="btn btn-success" id="btn-salvar" onclick="salvar()">💾 Salvar Processo</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+
+  const params  = new URLSearchParams(location.search);
+  const editId  = params.get("id");
+  const modoVer = params.get("modo") === "ver";
+  let _configEtapas = {};
+  let _isCadastro   = false;
+
+  async function inicializar() {
+    // Carrega dropdowns em paralelo
+    const [unidades, demandas, distribuidores, atribuidos, garantias] = await Promise.all([
+      api.unidades(), api.demandas(), api.distribuidores(), api.atribuidos(), api.garantias()
+    ]);
+
+    preencherSelect("unidade_id",        unidades,       "nome");
+    preencherSelect("demanda_id",        demandas,       "nome");
+    preencherSelect("distribuidor_id",   distribuidores, "nome");
+    preencherSelect("validador_id",      distribuidores, "nome");
+    preencherSelect("tem_garantia",      garantias,      "valor", "valor");
+    preencherSelect("atribuido_para_id", atribuidos,     "nome");
+    preencherSelect("atrib_assinatura_id", atribuidos,   "nome");
+    preencherSelect("atrib_cadastro_id",  atribuidos,    "nome");
+
+    if (editId) {
+      await carregarProcesso(editId);
+      document.getElementById("page-title").textContent = modoVer ? "👁 Visualizar Processo" : "✏️ Editar Processo";
+      document.querySelector(".page-header p").textContent =
+        modoVer ? "Visualização de processo contratual" : "Edição de processo contratual";
+    }
+
+    if (modoVer) {
+      desabilitarFormulario();
+      document.getElementById("form-actions").style.display = "none";
+    }
+
+    // Mostra colunas de cálculo para admin
+    if (isAdmin() && editId) {
+      document.querySelectorAll(".admin-info").forEach(el => el.style.display = "");
+    }
+  }
+
+  function preencherSelect(id, lista, labelKey, valueKey = "id") {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    lista.forEach(item => {
+      const o = document.createElement("option");
+      o.value = item[valueKey];
+      o.textContent = item[labelKey];
+      sel.appendChild(o);
+    });
+  }
+
+  async function carregarProcesso(id) {
+    const p = await api.obterProcesso(id);
+
+    const campos = [
+      "numero_processo","instrumento","contratada","data_entrada","comentario",
+      "data_atribuicao","data_validar","inicio_juridico","fim_juridico",
+      "data_atrib_assinatura","fim_assinatura","data_atrib_cadastro","fim_cadastro",
+    ];
+    campos.forEach(c => {
+      const el = document.getElementById(c);
+      if (el) el.value = p[c] || "";
+    });
+
+    const selects = {
+      unidade_id: p.unidade_id, demanda_id: p.demanda_id,
+      distribuidor_id: p.distribuidor_id, tem_garantia: p.tem_garantia,
+      atribuido_para_id: p.atribuido_para_id, validador_id: p.validador_id,
+      atrib_assinatura_id: p.atrib_assinatura_id,
+      atrib_cadastro_id: p.atrib_cadastro_id,
+    };
+    Object.entries(selects).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val != null) el.value = val;
+    });
+
+    // Aplica config de etapas
+    if (p.demanda_id) {
+      await aplicarConfigEtapas(p.demanda_id, p.data_atribuicao, p.atribuido_para_id);
+    }
+
+    // Renderiza cálculos (admin)
+    if (isAdmin() && p.calculos) {
+      renderCalculos(p.calculos);
+    }
+  }
+
+  async function onDemandaChange() {
+    const demandaId = document.getElementById("demanda_id").value;
+    if (!demandaId) return resetEtapas();
+    const dataAtrib  = document.getElementById("data_atribuicao").value || null;
+    const atribId    = document.getElementById("atribuido_para_id").value || null;
+    await aplicarConfigEtapas(parseInt(demandaId), dataAtrib, atribId ? parseInt(atribId) : null);
+  }
+
+  async function onAtribChange() {
+    const demandaId = document.getElementById("demanda_id").value;
+    if (!demandaId) return;
+    const dataAtrib = document.getElementById("data_atribuicao").value || null;
+    const atribId   = document.getElementById("atribuido_para_id").value || null;
+    await aplicarConfigEtapas(parseInt(demandaId), dataAtrib, atribId ? parseInt(atribId) : null);
+  }
+
+  async function aplicarConfigEtapas(demandaId, dataAtrib, atribId) {
+    try {
+      const res = await api.resolverEtapas(demandaId, dataAtrib, atribId);
+      _configEtapas = res.etapas;
+      _isCadastro   = res.is_cadastro;
+      aplicarEstadoCampos(res.etapas);
+    } catch (e) {
+      console.warn("Erro ao resolver etapas:", e.message);
+    }
+  }
+
+  // Mapeamento etapa → campo(s) do formulário
+  const ETAPA_CAMPOS = {
+    DATA_VALIDAR:           ["data_validar"],
+    VALIDADOR:              ["validador_id"],
+    INICIO_JURIDICO:        ["inicio_juridico"],
+    FIM_JURIDICO:           ["fim_juridico"],
+    ATRIB_ASSINATURA:       ["atrib_assinatura_id"],
+    DATA_ATRIB_ASSINATURA:  ["data_atrib_assinatura"],
+    FIM_ASSINATURA:         ["fim_assinatura"],
+    ATRIB_CADASTRO:         ["atrib_cadastro_id"],
+    DATA_ATRIB_CADASTRO:    ["data_atrib_cadastro"],
+    FIM_CADASTRO:           ["fim_cadastro"],
+  };
+
+  function aplicarEstadoCampos(etapas) {
+    Object.entries(ETAPA_CAMPOS).forEach(([etapa, campos]) => {
+      const cfg   = etapas[etapa] || { aplica: false, auto: false, valor: null };
+      campos.forEach(campoId => {
+        const wrap = document.getElementById(`wrap-${campoId}`);
+        const el   = document.getElementById(campoId);
+        if (!el) return;
+
+        if (!cfg.aplica) {
+          // Não se aplica — mostra N/A
+          if (wrap) wrap.innerHTML = `<div class="na-label">N/A</div>`;
+        } else if (cfg.auto) {
+          // Auto-preenchido
+          if (wrap) {
+            const val = cfg.valor || "";
+            const tipo = el.tagName === "SELECT" ? "select" : "input";
+            if (tipo === "input") {
+              wrap.innerHTML = `<input type="date" id="${campoId}" value="${val}" disabled style="background:#FFF8E1">`;
+            } else {
+              wrap.innerHTML = el.outerHTML.replace('id=', 'id=');
+              const newEl = wrap.querySelector(`#${campoId}`);
+              if (newEl) { newEl.value = val; newEl.disabled = true; newEl.style.background = "#FFF8E1"; }
+            }
+          }
+          if (el) el.value = cfg.valor || "";
+        } else {
+          // Aplica normalmente — restaura campo
+          if (wrap && wrap.querySelector(".na-label")) {
+            const tipo = campoId.endsWith("_id") ? "select" : "input";
+            if (tipo === "input") {
+              wrap.innerHTML = `<input type="date" id="${campoId}">`;
+            } else {
+              // Recriar select com opções originais — usa clone do original
+              const selOrig = document.querySelector(`select[id="${campoId}"]`);
+              if (selOrig) wrap.innerHTML = selOrig.outerHTML;
+            }
+          }
+          if (el) { el.disabled = false; el.style.background = ""; }
+        }
+      });
+    });
+
+    // Destaca cartões de etapa que não se aplicam
+    const grupos = {
+      card_validacao:  ["DATA_VALIDAR","VALIDADOR"],
+      card_juridico:   ["INICIO_JURIDICO","FIM_JURIDICO"],
+      card_assinatura: ["ATRIB_ASSINATURA","DATA_ATRIB_ASSINATURA","FIM_ASSINATURA"],
+      card_cadastro:   ["ATRIB_CADASTRO","DATA_ATRIB_CADASTRO","FIM_CADASTRO"],
+    };
+    Object.entries(grupos).forEach(([cardId, etapasList]) => {
+      const card = document.getElementById(cardId.replace("_","-"));
+      if (!card) return;
+      const algumAplica = etapasList.some(e => etapas[e]?.aplica);
+      card.style.display = algumAplica ? "" : "none";
+    });
+  }
+
+  function resetEtapas() {
+    _configEtapas = {};
+    _isCadastro   = false;
+    ["card-validacao","card-juridico","card-assinatura","card-cadastro"]
+      .forEach(id => { const c = document.getElementById(id); if (c) c.style.display = ""; });
+  }
+
+  function renderCalculos(calc) {
+    document.getElementById("card-calculos").style.display = "";
+    const etapas = [
+      { nome: "Distribuição", k: "distribuicao" },
+      { nome: "Validação",    k: "validacao"    },
+      { nome: "Jurídico",     k: "juridico"     },
+      { nome: "Assinatura",   k: "assinatura"   },
+      { nome: "Cadastro",     k: "cadastro"      },
+    ];
+    document.getElementById("tbody-calculos").innerHTML = etapas.map(e => {
+      const d = calc[e.k] || {};
+      return `<tr style="border-bottom:1px solid #EEE">
+        <td style="padding:6px 10px;font-weight:600">${e.nome}</td>
+        <td style="padding:6px 10px;text-align:center">${d.prazo_du != null ? d.prazo_du + " d.u." : "N/A"}</td>
+        <td style="padding:6px 10px;text-align:center">${formatDate(d.prev_fim)}</td>
+        <td style="padding:6px 10px">${badgeStatus(d.status)}</td>
+        <td style="padding:6px 10px;text-align:center">${d.tempo_real != null ? d.tempo_real + " d.u." : "—"}</td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("tfoot-calculos").innerHTML = `
+      <tr style="background:#ECEFF1;font-weight:600">
+        <td style="padding:6px 10px">TOTAL</td>
+        <td style="padding:6px 10px;text-align:center">${calc.prazo_total || "—"} d.u.</td>
+        <td style="padding:6px 10px;text-align:center">${formatDate(calc.prev_fim_total)}</td>
+        <td style="padding:6px 10px">${badgeStatus(calc.status_total)}</td>
+        <td style="padding:6px 10px;text-align:center">${calc.tempo_total != null ? calc.tempo_total + " d.u." : "—"}</td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding:6px 10px;font-size:11px;color:#666">
+          Responsabilidade: <strong>${calc.responsabilidade || "—"}</strong>
+        </td>
+      </tr>`;
+  }
+
+  async function salvar() {
+    const btn = document.getElementById("btn-salvar");
+    btn.disabled = true; btn.textContent = "Salvando…";
+
+    const dados = {
+      numero_processo:      document.getElementById("numero_processo").value.trim(),
+      instrumento:          document.getElementById("instrumento").value.trim() || null,
+      contratada:           document.getElementById("contratada").value.trim()  || null,
+      unidade_id:           intOrNull("unidade_id"),
+      data_entrada:         document.getElementById("data_entrada").value || null,
+      distribuidor_id:      intOrNull("distribuidor_id"),
+      tem_garantia:         document.getElementById("tem_garantia").value || null,
+      demanda_id:           intOrNull("demanda_id"),
+      data_atribuicao:      document.getElementById("data_atribuicao").value || null,
+      atribuido_para_id:    intOrNull("atribuido_para_id"),
+      data_validar:         campoAtivo("data_validar"),
+      validador_id:         campoAtivoInt("validador_id"),
+      inicio_juridico:      campoAtivo("inicio_juridico"),
+      fim_juridico:         campoAtivo("fim_juridico"),
+      atrib_assinatura_id:  campoAtivoInt("atrib_assinatura_id"),
+      data_atrib_assinatura: campoAtivo("data_atrib_assinatura"),
+      fim_assinatura:       campoAtivo("fim_assinatura"),
+      atrib_cadastro_id:    campoAtivoInt("atrib_cadastro_id"),
+      data_atrib_cadastro:  campoAtivo("data_atrib_cadastro"),
+      fim_cadastro:         campoAtivo("fim_cadastro"),
+      comentario:           document.getElementById("comentario").value.trim() || null,
+    };
+
+    if (!dados.numero_processo) {
+      mostrarAlerta("Número do Processo é obrigatório.", "danger");
+      btn.disabled = false; btn.textContent = "💾 Salvar Processo";
+      return;
+    }
+
+    try {
+      if (editId) {
+        await api.atualizarProcesso(editId, dados);
+        toast("Processo atualizado com sucesso!", "success");
+      } else {
+        await api.criarProcesso(dados);
+        toast("Processo criado com sucesso!", "success");
+        setTimeout(() => window.location.href = "/processos.html", 1200);
+      }
+    } catch (e) {
+      mostrarAlerta(e.message, "danger");
+    } finally {
+      btn.disabled = false; btn.textContent = "💾 Salvar Processo";
+    }
+  }
+
+  function intOrNull(id) {
+    const v = document.getElementById(id)?.value;
+    return v ? parseInt(v) : null;
+  }
+
+  // Retorna null se o campo foi marcado N/A, senão retorna o valor
+  function campoAtivo(id) {
+    const wrap = document.getElementById(`wrap-${id}`);
+    if (wrap && wrap.querySelector(".na-label")) return null;
+    return document.getElementById(id)?.value || null;
+  }
+  function campoAtivoInt(id) {
+    const v = campoAtivo(id);
+    return v ? parseInt(v) : null;
+  }
+
+  function mostrarAlerta(msg, tipo) {
+    document.getElementById("alert-form").innerHTML =
+      `<div class="alert alert-${tipo}">⚠ ${msg}</div>`;
+    window.scrollTo(0, 0);
+  }
+
+  function desabilitarFormulario() {
+    document.querySelectorAll("input, select, textarea").forEach(el => {
+      el.disabled = true;
+    });
+  }
+
+  inicializar();
+</script>
+</body>
+</html>

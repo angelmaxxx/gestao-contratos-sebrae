@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — SEBRAE Gestão de Contratos</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()" style="margin-left:4px">Sair</button>
+  </div>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="/dashboard.html"  data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"  data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"   data-page="usuarios"  class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"   data-page="feriados"  class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <h1>📊 Dashboard</h1>
+      <p id="sync-info">Carregando…</p>
+    </div>
+    <button class="btn btn-primary" onclick="carregar()">🔄 Recarregar</button>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards-grid">
+    <div class="card-stat vermelho" onclick="scrollTo('#sec-fora')">
+      <div class="icone">🔴</div>
+      <div class="info">
+        <div class="numero" id="cnt-fora">—</div>
+        <div class="label">Fora do Prazo</div>
+      </div>
+    </div>
+    <div class="card-stat azul" onclick="scrollTo('#sec-no')">
+      <div class="icone">🔵</div>
+      <div class="info">
+        <div class="numero" id="cnt-no">—</div>
+        <div class="label">No Prazo</div>
+      </div>
+    </div>
+    <div class="card-stat amarelo" onclick="scrollTo('#sec-pend')">
+      <div class="icone">⚠️</div>
+      <div class="info">
+        <div class="numero" id="cnt-pend">—</div>
+        <div class="label">Pendências</div>
+      </div>
+    </div>
+    <div class="card-stat verde" onclick="scrollTo('#sec-conc')">
+      <div class="icone">✅</div>
+      <div class="info">
+        <div class="numero" id="cnt-conc">—</div>
+        <div class="label">Concluídos (30d)</div>
+      </div>
+    </div>
+    <div class="card-stat cinza">
+      <div class="icone">📋</div>
+      <div class="info">
+        <div class="numero" id="cnt-total">—</div>
+        <div class="label">Total Processos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção: Fora do Prazo -->
+  <div id="sec-fora">
+    <div class="section-header vermelho">
+      🔴 EM ABERTO — FORA DO PRAZO
+      <span class="badge-count" id="lbl-fora">0</span>
+    </div>
+    <div class="section-toolbar">
+      <input type="text" id="busca-fora" placeholder="🔍 Buscar…" oninput="filtrarTabela('fora', this.value)">
+      <select id="resp-fora" onchange="filtrarTabela('fora', document.getElementById('busca-fora').value)">
+        <option value="">Todos Responsáveis</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Processo</th><th>Unidade</th><th>Demanda</th>
+          <th>Responsável</th><th>Dt. Entrada</th><th>Prazo Total</th>
+          <th>Prev. Fim</th><th>Status</th><th>Etapa Atual</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-fora"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Seção: No Prazo -->
+  <div id="sec-no" style="margin-top:8px">
+    <div class="section-header azul">
+      🔵 EM ABERTO — NO PRAZO
+      <span class="badge-count" id="lbl-no">0</span>
+    </div>
+    <div class="section-toolbar">
+      <input type="text" id="busca-no" placeholder="🔍 Buscar…" oninput="filtrarTabela('no', this.value)">
+      <select id="resp-no" onchange="filtrarTabela('no', document.getElementById('busca-no').value)">
+        <option value="">Todos Responsáveis</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Processo</th><th>Unidade</th><th>Demanda</th>
+          <th>Responsável</th><th>Dt. Entrada</th><th>Prazo Total</th>
+          <th>Prev. Fim</th><th>Status</th><th>Etapa Atual</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-no"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Seção: Pendências -->
+  <div id="sec-pend" style="margin-top:8px">
+    <div class="section-header amarelo">
+      ⚠️ PENDÊNCIAS NAS ETAPAS
+      <span class="badge-count" id="lbl-pend">0</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Processo</th><th>Unidade</th><th>Demanda</th>
+          <th>Responsável</th><th>Dt. Entrada</th><th>Status</th><th>Etapa Atual</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-pend"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Seção: Concluídos -->
+  <div id="sec-conc" style="margin-top:8px">
+    <div class="section-header verde">
+      ✅ CONCLUÍDOS (últimos 30 dias)
+      <span class="badge-count" id="lbl-conc">0</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Processo</th><th>Unidade</th><th>Demanda</th>
+          <th>Responsável</th><th>Dt. Entrada</th><th>Status</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="tbody-conc"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+
+  let _dados = { fora: [], no: [], pend: [], conc: [] };
+
+  async function carregar() {
+    document.getElementById("sync-info").textContent = "Carregando…";
+    try {
+      const d = await api.dashboard();
+
+      _dados.fora = d.fora_prazo.processos;
+      _dados.no   = d.no_prazo.processos;
+      _dados.pend = d.pendencias.processos;
+      _dados.conc = d.concluidos.processos;
+
+      document.getElementById("cnt-fora").textContent  = d.fora_prazo.total;
+      document.getElementById("cnt-no").textContent    = d.no_prazo.total;
+      document.getElementById("cnt-pend").textContent  = d.pendencias.total;
+      document.getElementById("cnt-conc").textContent  = d.concluidos.total;
+      document.getElementById("cnt-total").textContent = d.total_geral;
+
+      document.getElementById("lbl-fora").textContent = d.fora_prazo.total;
+      document.getElementById("lbl-no").textContent   = d.no_prazo.total;
+      document.getElementById("lbl-pend").textContent = d.pendencias.total;
+      document.getElementById("lbl-conc").textContent = d.concluidos.total;
+
+      renderTabela("fora", _dados.fora, "full");
+      renderTabela("no",   _dados.no,   "full");
+      renderTabela("pend", _dados.pend, "simples");
+      renderTabela("conc", _dados.conc, "conc");
+
+      preencherFiltroResp("fora", _dados.fora);
+      preencherFiltroResp("no",   _dados.no);
+
+      const agora = new Date().toLocaleString("pt-BR");
+      document.getElementById("sync-info").textContent =
+        `✅ ${d.total_geral} processos carregados — ${agora}`;
+    } catch (e) {
+      toast("Erro ao carregar dashboard: " + e.message, "error");
+      document.getElementById("sync-info").textContent = "Erro ao carregar.";
+    }
+  }
+
+  function renderTabela(key, lista, modo) {
+    const tb = document.getElementById(`tbody-${key}`);
+    if (!lista.length) {
+      tb.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#999;padding:16px">Nenhum registro</td></tr>`;
+      return;
+    }
+    tb.innerHTML = lista.map(p => {
+      const calc = p.calculos || {};
+      const st   = calc.status_total || "";
+      const cls  = st.includes("FORA") ? "fora-prazo" : st.includes("REALIZADO") ? "concluido" : "";
+      const prazoTotal = calc.prazo_total ? `${calc.prazo_total} d.u.` : "—";
+      const prevFim    = formatDate(calc.prev_fim_total);
+
+      if (modo === "full") return `
+        <tr class="${cls}">
+          <td><strong>${p.numero_processo}</strong></td>
+          <td>${p.unidade_nome || "—"}</td>
+          <td>${p.demanda_nome || "—"}</td>
+          <td>${p.atribuido_para_nome || "—"}</td>
+          <td>${formatDate(p.data_entrada)}</td>
+          <td>${prazoTotal}</td>
+          <td>${prevFim}</td>
+          <td>${badgeStatus(st)}</td>
+          <td><small>${etapaAtual(p)}</small></td>
+          <td class="acoes">
+            <button class="btn btn-sm btn-outline btn-icon" onclick="verProcesso(${p.id})" title="Visualizar">👁</button>
+            <button class="btn btn-sm btn-primary btn-icon" onclick="editarProcesso(${p.id})" title="Editar">✏️</button>
+          </td>
+        </tr>`;
+
+      if (modo === "simples") return `
+        <tr>
+          <td><strong>${p.numero_processo}</strong></td>
+          <td>${p.unidade_nome || "—"}</td>
+          <td>${p.demanda_nome || "—"}</td>
+          <td>${p.atribuido_para_nome || "—"}</td>
+          <td>${formatDate(p.data_entrada)}</td>
+          <td>${badgeStatus(st)}</td>
+          <td><small>${etapaAtual(p)}</small></td>
+          <td class="acoes">
+            <button class="btn btn-sm btn-outline btn-icon" onclick="verProcesso(${p.id})">👁</button>
+            <button class="btn btn-sm btn-primary btn-icon" onclick="editarProcesso(${p.id})">✏️</button>
+          </td>
+        </tr>`;
+
+      // concluído
+      return `
+        <tr class="concluido">
+          <td><strong>${p.numero_processo}</strong></td>
+          <td>${p.unidade_nome || "—"}</td>
+          <td>${p.demanda_nome || "—"}</td>
+          <td>${p.atribuido_para_nome || "—"}</td>
+          <td>${formatDate(p.data_entrada)}</td>
+          <td>${badgeStatus(st)}</td>
+          <td class="acoes">
+            <button class="btn btn-sm btn-outline btn-icon" onclick="verProcesso(${p.id})">👁</button>
+          </td>
+        </tr>`;
+    }).join("");
+  }
+
+  function preencherFiltroResp(key, lista) {
+    const sel = document.getElementById(`resp-${key}`);
+    const nomes = [...new Set(lista.map(p => p.atribuido_para_nome).filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">Todos Responsáveis</option>` +
+      nomes.map(n => `<option value="${n}">${n}</option>`).join("");
+  }
+
+  function filtrarTabela(key, busca) {
+    const resp = document.getElementById(`resp-${key}`)?.value || "";
+    const termo = busca.toLowerCase();
+    const filtrado = _dados[key].filter(p => {
+      const matchBusca = !termo ||
+        (p.numero_processo || "").toLowerCase().includes(termo) ||
+        (p.demanda_nome    || "").toLowerCase().includes(termo) ||
+        (p.unidade_nome    || "").toLowerCase().includes(termo);
+      const matchResp = !resp || p.atribuido_para_nome === resp;
+      return matchBusca && matchResp;
+    });
+    const modo = key === "conc" ? "conc" : key === "pend" ? "simples" : "full";
+    renderTabela(key, filtrado, modo);
+  }
+
+  function verProcesso(id) {
+    window.location.href = `/novo_processo.html?id=${id}&modo=ver`;
+  }
+  function editarProcesso(id) {
+    window.location.href = `/novo_processo.html?id=${id}`;
+  }
+
+  carregar();
+</script>
+</body>
+</html>

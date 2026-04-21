@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todos os Processos — SEBRAE</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()">Sair</button>
+  </div>
+</div>
+<nav class="navbar">
+  <a href="/dashboard.html"     data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"     data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"      data-page="usuarios"   class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"      data-page="feriados"   class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div>
+      <h1>📋 Todos os Processos</h1>
+      <p>Listagem completa com filtros avançados</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="exportarCSV()">📥 Exportar CSV</button>
+      <a href="/novo_processo.html" class="btn btn-primary">➕ Novo Processo</a>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div style="background:#fff;border-radius:8px;padding:12px 14px;margin-bottom:14px;
+              box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <input type="text" id="f-busca" placeholder="🔍 Buscar processo…"
+           style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:180px"
+           oninput="debounceCarregar()">
+    <select id="f-status" onchange="carregar()" style="border:1px solid #ccc;border-radius:4px;padding:6px 8px;font-size:12px">
+      <option value="">Todos os Status</option>
+      <option value="EM ABERTO NO PRAZO">Em Aberto — No Prazo</option>
+      <option value="EM ABERTO FORA DO PRAZO">Em Aberto — Fora do Prazo</option>
+      <option value="REALIZADO NO PRAZO">Realizado — No Prazo</option>
+      <option value="REALIZADO FORA DO PRAZO">Realizado — Fora do Prazo</option>
+      <option value="PENDÊNCIAS NAS ETAPAS">Pendências nas Etapas</option>
+    </select>
+    <select id="f-responsavel" onchange="carregar()"
+            style="border:1px solid #ccc;border-radius:4px;padding:6px 8px;font-size:12px">
+      <option value="">Todos Responsáveis</option>
+    </select>
+    <select id="f-unidade" onchange="carregar()"
+            style="border:1px solid #ccc;border-radius:4px;padding:6px 8px;font-size:12px">
+      <option value="">Unidade</option>
+    </select>
+    <select id="f-demanda" onchange="carregar()"
+            style="border:1px solid #ccc;border-radius:4px;padding:6px 8px;font-size:12px">
+      <option value="">Demanda</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="limparFiltros()">✕ Limpar</button>
+  </div>
+
+  <!-- Tabela -->
+  <div class="table-wrap" style="border-radius:8px;border:1px solid var(--cinza-borda)">
+    <table id="tabela-processos">
+      <thead>
+        <tr>
+          <th>Processo</th>
+          <th>Unidade</th>
+          <th>Demanda</th>
+          <th>Distribuidor</th>
+          <th>Atribuído Para</th>
+          <th>Dt. Entrada</th>
+          <th>Prazo Total</th>
+          <th>Status Total</th>
+          <th>Responsabilidade</th>
+          <th>Sync</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-processos">
+        <tr><td colspan="11" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="paginacao" id="paginacao"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Modal Confirmação Exclusão -->
+<div class="modal-overlay" id="modal-excluir">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">⚠ Confirmar Exclusão</div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja excluir o processo <strong id="excluir-numero"></strong>?</p>
+      <p style="color:#888;font-size:11px;margin-top:8px">Esta ação não pode ser desfeita.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-excluir">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+
+  let paginaAtual = 1;
+  const POR_PAGINA = 50;
+  let _processos = [];
+  let _debounce;
+
+  function debounceCarregar() {
+    clearTimeout(_debounce);
+    _debounce = setTimeout(carregar, 400);
+  }
+
+  async function inicializar() {
+    // Carrega filtros
+    const [atribuidos, unidades, demandas] = await Promise.all([
+      api.atribuidos(), api.unidades(), api.demandas()
+    ]);
+
+    const selResp = document.getElementById("f-responsavel");
+    atribuidos.forEach(a => {
+      const o = document.createElement("option");
+      o.value = a.id; o.textContent = a.nome;
+      selResp.appendChild(o);
+    });
+
+    const selUn = document.getElementById("f-unidade");
+    unidades.forEach(u => {
+      const o = document.createElement("option");
+      o.value = u.id; o.textContent = u.nome;
+      selUn.appendChild(o);
+    });
+
+    const selDem = document.getElementById("f-demanda");
+    demandas.forEach(d => {
+      const o = document.createElement("option");
+      o.value = d.id; o.textContent = d.nome;
+      selDem.appendChild(o);
+    });
+
+    carregar();
+  }
+
+  async function carregar() {
+    const params = {
+      page:         paginaAtual,
+      por_pagina:   POR_PAGINA,
+      busca:        document.getElementById("f-busca").value.trim() || null,
+      status:       document.getElementById("f-status").value || null,
+      atribuido_id: document.getElementById("f-responsavel").value || null,
+      unidade_id:   document.getElementById("f-unidade").value || null,
+      demanda_id:   document.getElementById("f-demanda").value || null,
+    };
+
+    try {
+      const res = await api.listarProcessos(params);
+      _processos = res.data;
+      renderTabela(_processos);
+      renderPaginacao(res.page, res.por_pagina, _processos.length);
+    } catch (e) {
+      toast("Erro: " + e.message, "error");
+    }
+  }
+
+  function renderTabela(lista) {
+    const tb = document.getElementById("tbody-processos");
+    const admin = isAdmin();
+
+    if (!lista.length) {
+      tb.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:24px;color:#999">Nenhum processo encontrado</td></tr>`;
+      return;
+    }
+
+    tb.innerHTML = lista.map(p => {
+      const calc = p.calculos || {};
+      const st   = calc.status_total || "";
+      const cls  = st.includes("FORA DO PRAZO") ? "fora-prazo" : st.includes("REALIZADO") ? "concluido" : "";
+
+      const prazoTotal = calc.prazo_total ? `${calc.prazo_total} d.u.` : "—";
+      const resp       = calc.responsabilidade || "—";
+
+      return `
+      <tr class="${cls}">
+        <td><strong>${p.numero_processo}</strong></td>
+        <td>${p.unidade_nome || "—"}</td>
+        <td style="color:var(--azul-btn)">${p.demanda_nome || "—"}</td>
+        <td>${p.distribuidor_nome || "—"}</td>
+        <td>${p.atribuido_para_nome || "—"}</td>
+        <td>${formatDate(p.data_entrada)}</td>
+        <td>${prazoTotal}</td>
+        <td>${badgeStatus(st)}</td>
+        <td><small>${resp}</small></td>
+        <td><span class="badge ativo" style="font-size:10px">✓ Sync</span></td>
+        <td class="acoes">
+          <button class="btn btn-sm btn-outline btn-icon" onclick="verProcesso(${p.id})" title="Ver">👁</button>
+          <button class="btn btn-sm btn-primary btn-icon" onclick="editarProcesso(${p.id})" title="Editar">✏️</button>
+          ${admin ? `<button class="btn btn-sm btn-danger btn-icon" onclick="confirmarExcluir(${p.id}, '${p.numero_processo}')" title="Excluir">🗑</button>` : ""}
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function renderPaginacao(page, porPagina, total) {
+    const pag = document.getElementById("paginacao");
+    const temProx = total === porPagina;
+    pag.innerHTML = `
+      <span style="color:#666;margin-right:8px">Página ${page}</span>
+      <button onclick="mudarPagina(${page - 1})" ${page <= 1 ? "disabled" : ""}>‹ Anterior</button>
+      <button class="active">${page}</button>
+      <button onclick="mudarPagina(${page + 1})" ${!temProx ? "disabled" : ""}>Próxima ›</button>`;
+  }
+
+  function mudarPagina(p) {
+    if (p < 1) return;
+    paginaAtual = p;
+    carregar();
+    window.scrollTo(0, 0);
+  }
+
+  function limparFiltros() {
+    ["f-busca","f-status","f-responsavel","f-unidade","f-demanda"]
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+    paginaAtual = 1;
+    carregar();
+  }
+
+  function verProcesso(id)    { window.location.href = `/novo_processo.html?id=${id}&modo=ver`; }
+  function editarProcesso(id) { window.location.href = `/novo_processo.html?id=${id}`; }
+
+  let _excluirId;
+  function confirmarExcluir(id, numero) {
+    _excluirId = id;
+    document.getElementById("excluir-numero").textContent = numero;
+    document.getElementById("modal-excluir").classList.add("open");
+  }
+  function fecharModal() {
+    document.getElementById("modal-excluir").classList.remove("open");
+  }
+  document.getElementById("btn-confirmar-excluir").addEventListener("click", async () => {
+    try {
+      await api.excluirProcesso(_excluirId);
+      fecharModal();
+      toast("Processo excluído com sucesso", "success");
+      carregar();
+    } catch (e) {
+      toast("Erro ao excluir: " + e.message, "error");
+    }
+  });
+
+  async function exportarCSV() {
+    const btn = document.querySelector("button[onclick='exportarCSV()']");
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ Exportando…"; }
+
+    try {
+      // Busca TODOS os processos com dados calculados (endpoint admin)
+      const dados = await apiFetch("/processos/exportar");
+      if (!dados.length) { toast("Nenhum dado para exportar", "info"); return; }
+
+      // ── Cabeçalho idêntico ao CSV de referência ──────────────────────
+      const HEADER = [
+        "PROCESSO","UNIDADE","DATA ENTRADA","DISTRIBUIDOR","GARANTIA","DEMANDA",
+        "DATA ATRIBUIÇÃO","ATRIBUÍDO PARA",
+        "DATA VALIDAR","VALIDADOR",
+        "INÍCIO JURÍDICO","FIM JURÍDICO",
+        "ATRIB ASSINATURA","DATA ATRIB ASSINATURA","FIM ASSINATURA",
+        "ATRIB CADASTRO","DATA ATRIB CADASTRO","FIM CADASTRO",
+        "PRAZO DISTRIB","PRAZO VALID","PRAZO JUR","PRAZO ASSIN","PRAZO CAD","PRAZO TOTAL",
+        "PREV FIM DISTRIB","PREV FIM VALID","PREV FIM JUR","PREV FIM ASSIN","PREV FIM CAD","PREV FIM TOTAL",
+        "STATUS DISTRIB","STATUS VALID","STATUS JUR","STATUS ASSIN","STATUS CAD","STATUS TOTAL",
+        "STATUS FORMAT","RESPONSABILIDADE",
+        "TEMPO DISTRIB","TEMPO VALID","TEMPO JUR","TEMPO ASSIN","TEMPO CAD","TEMPO TOTAL",
+        "COMENTÁRIO"
+      ];
+
+      function v(val)   { return val != null && val !== "" ? String(val) : ""; }
+      function na(val)  { return val != null && val !== "" ? String(val) : "N/A"; }
+      function dt(val)  { return val ? String(val).substring(0, 10) : ""; }
+      function dna(val) { return val ? String(val).substring(0, 10) : "N/A"; }
+
+      function statusFormat(st) {
+        if (!st) return "";
+        if (st.includes("REALIZADO")) return "CONCLUÍDO";
+        if (st.includes("FORA DO PRAZO")) return "FORA DO PRAZO";
+        if (st.includes("PENDÊNCIA") || st.includes("PENDENCIA")) return "PENDÊNCIA";
+        if (st.includes("EM ABERTO")) return "EM ABERTO";
+        return st;
+      }
+
+      const linhas = dados.map(p => {
+        const c   = p.calculos || {};
+        const di  = c.distribuicao || {};
+        const va  = c.validacao    || {};
+        const ju  = c.juridico     || {};
+        const as  = c.assinatura   || {};
+        const ca  = c.cadastro     || {};
+
+        const semValid  = p.nao_aplica_validacao;
+        const semJur    = p.nao_aplica_juridico;
+        const semAssin  = p.nao_aplica_assinatura;
+        const semCad    = p.nao_aplica_cadastro;
+
+        const row = [
+          v(p.numero_processo),
+          v(p.unidade_nome),
+          dt(p.data_entrada),
+          v(p.distribuidor_nome),
+          v(p.tem_garantia),
+          v(p.demanda_nome),
+          dt(p.data_atribuicao),
+          v(p.atribuido_para_nome),
+          // Validação
+          semValid ? "N/A" : dna(p.data_validar),
+          semValid ? "N/A" : na(p.validador_nome),
+          // Jurídico
+          semJur ? "N/A" : dna(p.inicio_juridico),
+          semJur ? "N/A" : dna(p.fim_juridico),
+          // Assinatura
+          semAssin ? "N/A" : na(p.atrib_assinatura_nome),
+          semAssin ? "N/A" : dna(p.data_atrib_assinatura),
+          semAssin ? "N/A" : dna(p.fim_assinatura),
+          // Cadastro
+          semCad ? "N/A" : na(p.atrib_cadastro_nome),
+          semCad ? "N/A" : dna(p.data_atrib_cadastro),
+          semCad ? "N/A" : dna(p.fim_cadastro),
+          // Prazos
+          v(di.prazo_du),
+          semValid ? "N/A" : v(va.prazo_du),
+          semJur   ? "N/A" : v(ju.prazo_du),
+          semAssin ? "N/A" : v(as.prazo_du),
+          semCad   ? "N/A" : v(ca.prazo_du),
+          v(c.prazo_total),
+          // Prev Fim
+          dt(di.prev_fim),
+          semValid ? "N/A" : dna(va.prev_fim),
+          semJur   ? "N/A" : dna(ju.prev_fim),
+          semAssin ? "N/A" : dna(as.prev_fim),
+          semCad   ? "N/A" : dna(ca.prev_fim),
+          dt(c.prev_fim_total),
+          // Status
+          v(di.status),
+          semValid ? "N/A" : v(va.status),
+          semJur   ? "N/A" : v(ju.status),
+          semAssin ? "N/A" : v(as.status),
+          semCad   ? "N/A" : v(ca.status),
+          v(c.status_total),
+          statusFormat(c.status_total),
+          v(c.responsabilidade),
+          // Tempo real
+          v(di.tempo_real),
+          semValid ? "N/A" : v(va.tempo_real),
+          semJur   ? "N/A" : v(ju.tempo_real),
+          semAssin ? "N/A" : v(as.tempo_real),
+          semCad   ? "N/A" : v(ca.tempo_real),
+          v(c.tempo_total),
+          // Comentário
+          v(p.comentario),
+        ];
+
+        return row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(";");
+      });
+
+      const hoje = new Date().toISOString().slice(0,10).replace(/-/g,"");
+      const csv  = [HEADER.join(";"), ...linhas].join("\r\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url;
+      a.download = `gestao_contratos_${hoje}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast(`${dados.length} processo(s) exportado(s)!`, "success");
+    } catch (e) {
+      toast("Erro ao exportar: " + e.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "📥 Exportar CSV"; }
+    }
+  }
+
+  inicializar();
+</script>
+</body>
+</html>

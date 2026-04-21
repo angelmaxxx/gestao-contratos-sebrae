@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feriados — SEBRAE</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-img"><span class="logo-titulo">Gestão de Contratos</span></div>
+  <div class="topbar-right">
+    <span class="user-info">👤 <strong id="topbar-user"></strong></span>
+    <span class="badge-perfil" id="topbar-perfil"></span>
+    <button class="btn btn-sm btn-outline" onclick="logout()">Sair</button>
+  </div>
+</div>
+<nav class="navbar">
+  <a href="/dashboard.html"     data-page="dashboard">📊 Dashboard</a>
+  <a href="/processos.html"     data-page="processos">📋 Todos os Processos</a>
+  <a href="/novo_processo.html" data-page="novo_processo">➕ Novo Processo</a>
+  <a href="/usuarios.html"      data-page="usuarios"      class="admin-only">👥 Usuários</a>
+  <a href="/feriados.html"      data-page="feriados"      class="admin-only">📅 Feriados</a>
+  <a href="/configuracoes.html" data-page="configuracoes" class="admin-only">⚙ Configurações</a>
+</nav>
+
+<div class="main-content">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <h1>📅 Feriados e Recessos SEBRAE</h1>
+      <p>Datas excluídas do cálculo de dias úteis em todos os processos</p>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalNovo()">➕ Novo Feriado</button>
+  </div>
+
+  <div class="alert alert-warning">
+    ⚠ <strong>Atenção:</strong> Qualquer alteração nesta tabela impacta imediatamente o cálculo de
+    prazos e previsões de <strong>todos</strong> os processos. Verifique antes de salvar.
+  </div>
+
+  <div class="table-wrap" style="border-radius:8px;border:1px solid var(--cinza-borda);margin-top:14px">
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Dia da Semana</th>
+          <th>Descrição</th>
+          <th>Tipo</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-feriados">
+        <tr><td colspan="5" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-feriado">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <span id="modal-titulo">Novo Feriado</span>
+      <button onclick="fecharModal()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="alert-modal"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data <span class="required">*</span></label>
+          <input type="date" id="m-data">
+        </div>
+        <div class="form-group">
+          <label>Tipo <span class="required">*</span></label>
+          <select id="m-tipo">
+            <option value="FERIADO_NACIONAL">Feriado Nacional</option>
+            <option value="FERIADO_DISTRITAL">Feriado Distrital</option>
+            <option value="RECESSO_SEBRAE">Recesso SEBRAE</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição <span class="required">*</span></label>
+        <input type="text" id="m-descricao" placeholder="Ex: Tiradentes, Recesso SEBRAE…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-success" id="btn-salvar" onclick="salvar()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmar Exclusão -->
+<div class="modal-overlay" id="modal-excluir">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">⚠ Confirmar Exclusão</div>
+    <div class="modal-body">
+      <p>Excluir o feriado <strong id="excluir-desc"></strong> (<span id="excluir-data"></span>)?</p>
+      <p style="color:#888;font-size:11px;margin-top:8px">
+        Os cálculos de prazo serão recalculados sem esta data.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('modal-excluir').classList.remove('open')">Cancelar</button>
+      <button class="btn btn-danger"  id="btn-confirmar-excluir">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script>
+  initLayout();
+  if (!isAdmin()) window.location.href = "/dashboard.html";
+
+  let _editId = null;
+
+  const TIPO_LABEL = {
+    FERIADO_NACIONAL:  '<span class="badge no-prazo">Nacional</span>',
+    FERIADO_DISTRITAL: '<span class="badge pendencia">Distrital</span>',
+    RECESSO_SEBRAE:    '<span class="badge admin">Recesso SEBRAE</span>',
+  };
+
+  async function carregar() {
+    const lista = await api.listarFeriados();
+    const tb = document.getElementById("tbody-feriados");
+    if (!lista.length) {
+      tb.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#999">Nenhum feriado cadastrado</td></tr>`;
+      return;
+    }
+    tb.innerHTML = lista.map(f => `
+      <tr>
+        <td><strong>${formatDate(f.data)}</strong></td>
+        <td>${f.dia_semana || "—"}</td>
+        <td>${f.descricao}</td>
+        <td>${TIPO_LABEL[f.tipo] || f.tipo}</td>
+        <td class="acoes">
+          <button class="btn btn-sm btn-primary btn-icon"
+            onclick='abrirModalEditar(${JSON.stringify(f).replace(/"/g,"&quot;")})' title="Editar">✏️</button>
+          <button class="btn btn-sm btn-danger btn-icon"
+            onclick="confirmarExcluir(${f.id}, '${f.descricao}', '${f.data}')" title="Excluir">🗑</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  function abrirModalNovo() {
+    _editId = null;
+    document.getElementById("modal-titulo").textContent = "Novo Feriado";
+    document.getElementById("m-data").value      = "";
+    document.getElementById("m-tipo").value      = "FERIADO_NACIONAL";
+    document.getElementById("m-descricao").value = "";
+    document.getElementById("alert-modal").innerHTML = "";
+    document.getElementById("modal-feriado").classList.add("open");
+  }
+
+  function abrirModalEditar(f) {
+    _editId = f.id;
+    document.getElementById("modal-titulo").textContent = "Editar Feriado";
+    document.getElementById("m-data").value      = f.data;
+    document.getElementById("m-tipo").value      = f.tipo;
+    document.getElementById("m-descricao").value = f.descricao;
+    document.getElementById("alert-modal").innerHTML = "";
+    document.getElementById("modal-feriado").classList.add("open");
+  }
+
+  function fecharModal() {
+    document.getElementById("modal-feriado").classList.remove("open");
+  }
+
+  async function salvar() {
+    const btn = document.getElementById("btn-salvar");
+    btn.disabled = true;
+    const dados = {
+      data:      document.getElementById("m-data").value,
+      tipo:      document.getElementById("m-tipo").value,
+      descricao: document.getElementById("m-descricao").value.trim(),
+    };
+    if (!dados.data || !dados.descricao) {
+      document.getElementById("alert-modal").innerHTML =
+        `<div class="alert alert-danger">Preencha todos os campos obrigatórios.</div>`;
+      btn.disabled = false; return;
+    }
+    try {
+      if (_editId) {
+        await api.atualizarFeriado(_editId, dados);
+        toast("Feriado atualizado! Prazos recalculados.", "success");
+      } else {
+        await api.criarFeriado(dados);
+        toast("Feriado adicionado! Prazos recalculados.", "success");
+      }
+      fecharModal(); carregar();
+    } catch (e) {
+      document.getElementById("alert-modal").innerHTML =
+        `<div class="alert alert-danger">⚠ ${e.message}</div>`;
+    } finally { btn.disabled = false; }
+  }
+
+  let _excluirId;
+  function confirmarExcluir(id, desc, data) {
+    _excluirId = id;
+    document.getElementById("excluir-desc").textContent = desc;
+    document.getElementById("excluir-data").textContent = formatDate(data);
+    document.getElementById("modal-excluir").classList.add("open");
+  }
+  document.getElementById("btn-confirmar-excluir").addEventListener("click", async () => {
+    try {
+      await api.excluirFeriado(_excluirId);
+      document.getElementById("modal-excluir").classList.remove("open");
+      toast("Feriado removido. Prazos recalculados.", "success");
+      carregar();
+    } catch (e) { toast("Erro: " + e.message, "error"); }
+  });
+
+  carregar();
+</script>
+</body>
+</html>

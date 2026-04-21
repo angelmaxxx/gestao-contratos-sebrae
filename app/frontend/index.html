@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEBRAE — Gestão de Contratos</title>
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+<div class="login-container">
+  <div class="login-box">
+    <div class="logo-login">
+      <div class="logo-login-box">
+        <img src="/assets/img/logo_sebrae.png" alt="SEBRAE" class="logo-sebrae-img">
+      </div>
+      <h1>GESTÃO DE CONTRATOS</h1>
+      <p>Sistema de Gestão Contratual — SEBRAE</p>
+    </div>
+
+    <div id="alert-login"></div>
+
+    <form id="form-login">
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Usuário</label>
+        <input type="text" id="login" placeholder="Digite seu usuário" autocomplete="username" required>
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Senha</label>
+        <input type="password" id="senha" placeholder="Digite sua senha" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;font-size:13px;font-weight:600">
+        🔐 Entrar no Sistema
+      </button>
+    </form>
+  </div>
+</div>
+
+<script src="/assets/js/api.js"></script>
+<script>
+  // Redireciona se já autenticado
+  if (localStorage.getItem("token")) {
+    window.location.href = "/dashboard.html";
+  }
+
+  document.getElementById("form-login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alert = document.getElementById("alert-login");
+    alert.innerHTML = "";
+    const btn = e.target.querySelector("button");
+    btn.disabled = true;
+    btn.textContent = "Entrando…";
+
+    try {
+      const res = await api.login(
+        document.getElementById("login").value.trim(),
+        document.getElementById("senha").value
+      );
+      localStorage.setItem("token",  res.token);
+      localStorage.setItem("sessao", JSON.stringify({ nome: res.nome, perfil: res.perfil }));
+      window.location.href = "/dashboard.html";
+    } catch (err) {
+      alert.innerHTML = `<div class="alert alert-danger">⚠ ${err.message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Entrar";
+    }
+  });
+</script>
+</body>
+</html>
