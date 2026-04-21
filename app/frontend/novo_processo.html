@@ -259,19 +259,24 @@
   let _isCadastro   = false;
 
   async function inicializar() {
-    // Carrega dropdowns em paralelo
-    const [unidades, demandas, distribuidores, atribuidos, garantias] = await Promise.all([
-      api.unidades(), api.demandas(), api.distribuidores(), api.atribuidos(), api.garantias()
-    ]);
+    // Carrega todos os dropdowns — se falhar mostra erro claro
+    try {
+      const [unidades, demandas, distribuidores, atribuidos, garantias] = await Promise.all([
+        api.unidades(), api.demandas(), api.distribuidores(), api.atribuidos(), api.garantias()
+      ]);
 
-    preencherSelect("unidade_id",        unidades,       "nome");
-    preencherSelect("demanda_id",        demandas,       "nome");
-    preencherSelect("distribuidor_id",   distribuidores, "nome");
-    preencherSelect("validador_id",      distribuidores, "nome");
-    preencherSelect("tem_garantia",      garantias,      "valor", "valor");
-    preencherSelect("atribuido_para_id", atribuidos,     "nome");
-    preencherSelect("atrib_assinatura_id", atribuidos,   "nome");
-    preencherSelect("atrib_cadastro_id",  atribuidos,    "nome");
+      preencherSelect("unidade_id",          unidades,       "nome");
+      preencherSelect("demanda_id",          demandas,       "nome");
+      preencherSelect("distribuidor_id",     distribuidores, "nome");
+      preencherSelect("validador_id",        distribuidores, "nome");
+      preencherSelect("tem_garantia",        garantias,      "valor", "valor");
+      preencherSelect("atribuido_para_id",   atribuidos,     "nome");
+      preencherSelect("atrib_assinatura_id", atribuidos,     "nome");
+      preencherSelect("atrib_cadastro_id",   atribuidos,     "nome");
+    } catch (e) {
+      mostrarAlerta("Erro ao carregar listas de opções. Recarregue a página. (" + e.message + ")", "danger");
+      return;
+    }
 
     if (editId) {
       await carregarProcesso(editId);
@@ -303,38 +308,65 @@
   }
 
   async function carregarProcesso(id) {
-    const p = await api.obterProcesso(id);
+    try {
+      const p = await api.obterProcesso(id);
 
-    const campos = [
-      "numero_processo","instrumento","contratada","data_entrada","comentario",
-      "data_atribuicao","data_validar","inicio_juridico","fim_juridico",
-      "data_atrib_assinatura","fim_assinatura","data_atrib_cadastro","fim_cadastro",
-    ];
-    campos.forEach(c => {
-      const el = document.getElementById(c);
-      if (el) el.value = p[c] || "";
-    });
+      // ── PASSO 1: aplica config de etapas PRIMEIRO ──────────────────────
+      // (aplicarEstadoCampos destrói/recria elementos DOM; os valores
+      //  só podem ser preenchidos DEPOIS que o DOM estiver estável)
+      if (p.demanda_id) {
+        await aplicarConfigEtapas(p.demanda_id, p.data_atribuicao, p.atribuido_para_id);
+      }
 
-    const selects = {
-      unidade_id: p.unidade_id, demanda_id: p.demanda_id,
-      distribuidor_id: p.distribuidor_id, tem_garantia: p.tem_garantia,
-      atribuido_para_id: p.atribuido_para_id, validador_id: p.validador_id,
-      atrib_assinatura_id: p.atrib_assinatura_id,
-      atrib_cadastro_id: p.atrib_cadastro_id,
-    };
-    Object.entries(selects).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (el && val != null) el.value = val;
-    });
+      // ── PASSO 2: preenche todos os valores no DOM já estabilizado ───────
 
-    // Aplica config de etapas
-    if (p.demanda_id) {
-      await aplicarConfigEtapas(p.demanda_id, p.data_atribuicao, p.atribuido_para_id);
-    }
+      // Campos de texto simples
+      ["numero_processo","instrumento","contratada","comentario"].forEach(c => {
+        const el = document.getElementById(c);
+        if (el) el.value = p[c] || "";
+      });
 
-    // Renderiza cálculos (admin)
-    if (isAdmin() && p.calculos) {
-      renderCalculos(p.calculos);
+      // Campos de data
+      ["data_entrada","data_atribuicao","data_validar","inicio_juridico","fim_juridico",
+       "data_atrib_assinatura","fim_assinatura","data_atrib_cadastro","fim_cadastro"
+      ].forEach(c => {
+        const el = document.getElementById(c);
+        if (el) el.value = p[c] ? String(p[c]).substring(0, 10) : "";
+      });
+
+      // Selects de IDs (unidade, demanda, distribuidor, atribuídos)
+      [
+        ["unidade_id",          p.unidade_id],
+        ["demanda_id",          p.demanda_id],
+        ["distribuidor_id",     p.distribuidor_id],
+        ["atribuido_para_id",   p.atribuido_para_id],
+        ["validador_id",        p.validador_id],
+        ["atrib_assinatura_id", p.atrib_assinatura_id],
+        ["atrib_cadastro_id",   p.atrib_cadastro_id],
+      ].forEach(([fieldId, val]) => {
+        const el = document.getElementById(fieldId);
+        if (el && val != null) el.value = val;
+      });
+
+      // tem_garantia: normaliza para o valor exato do select ("SIM" / "NÃO" / "NÃO SE APLICA")
+      const elGar = document.getElementById("tem_garantia");
+      if (elGar && p.tem_garantia != null) {
+        const g = String(p.tem_garantia).toLowerCase().trim()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove acentos p/ comparação
+        if (g === "true" || g === "sim")              elGar.value = "SIM";
+        else if (g === "false" || g === "nao")        elGar.value = "N\u00c3O";
+        else if (g === "nao se aplica")               elGar.value = "N\u00c3O SE APLICA";
+        else elGar.value = p.tem_garantia; // já está no formato correto
+      }
+
+      // ── PASSO 3: renderiza cálculos (admin) ─────────────────────────────
+      if (isAdmin() && p.calculos) {
+        renderCalculos(p.calculos);
+      }
+
+    } catch (e) {
+      console.error("Erro ao carregar processo:", e);
+      mostrarAlerta("Erro ao carregar dados do processo: " + e.message, "danger");
     }
   }
 
