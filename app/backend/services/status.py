@@ -66,12 +66,15 @@ def status_etapa(
 def status_total(status_list: list[Optional[str]]) -> Optional[str]:
     """
     Equivalente à coluna AN. Agrega o status de todas as etapas.
-    PENDÊNCIAS em qualquer etapa → EM ABERTO FORA DO PRAZO no total.
+    PENDÊNCIAS em qualquer etapa → PENDÊNCIAS NAS ETAPAS no total
+    (aparece na seção dedicada do dashboard, separado de EM ABERTO FORA DO PRAZO).
     """
     validos = [s for s in status_list if s and s != NA]
     if not validos:
         return None
-    if any(s in (EM_ABERTO_FORA_DO_PRAZO, PENDENCIAS) for s in validos):
+    if any(s == PENDENCIAS for s in validos):
+        return PENDENCIAS
+    if any(s == EM_ABERTO_FORA_DO_PRAZO for s in validos):
         return EM_ABERTO_FORA_DO_PRAZO
     if any(s == REALIZADO_FORA_DO_PRAZO for s in validos):
         return REALIZADO_FORA_DO_PRAZO
@@ -88,7 +91,7 @@ def responsabilidade(st_total: Optional[str], status_list: list[Optional[str]]) 
         return None
     if st_total == REALIZADO_NO_PRAZO:
         return "NO PRAZO"
-    if "EM ABERTO" in st_total:
+    if st_total == PENDENCIAS or "EM ABERTO" in st_total:
         return "EM ABERTO"
     if st_total == REALIZADO_FORA_DO_PRAZO:
         # Verifica se o atraso foi em etapa interna (CADASTRO = UAC) ou externa
@@ -189,7 +192,8 @@ def calcular_processo_completo(processo: dict, db) -> dict:
     # prev_fim_total (não é simples agregação de status por etapa).
     #
     # Lógica:
-    #  1. Se houver PENDÊNCIAS em qualquer etapa → EM ABERTO FORA DO PRAZO
+    #  1. Se houver PENDÊNCIAS em qualquer etapa → PENDÊNCIAS NAS ETAPAS
+    #     (seção dedicada no dashboard — requer correção de dados)
     #  2. Se a última etapa aplicável foi concluída:
     #       data_conclusao_final <= prev_fim_total → REALIZADO NO PRAZO
     #       data_conclusao_final >  prev_fim_total → REALIZADO FORA DO PRAZO
@@ -212,7 +216,7 @@ def calcular_processo_completo(processo: dict, db) -> dict:
     if prev_fim_total is None:
         st_total = None
     elif _tem_pend:
-        st_total = EM_ABERTO_FORA_DO_PRAZO
+        st_total = PENDENCIAS
     elif _concluido and data_conclusao_final:
         st_total = REALIZADO_NO_PRAZO if data_conclusao_final <= prev_fim_total else REALIZADO_FORA_DO_PRAZO
     else:
