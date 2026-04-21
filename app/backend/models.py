@@ -89,6 +89,10 @@ class PrazoEtapaUpdate(BaseModel):
     dias_uteis: int
 
 
+class PrazoValidacaoUpdate(BaseModel):
+    dias_uteis: int
+
+
 # ============================================================
 # PROCESSOS
 # ============================================================

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
 from auth import require_admin, get_usuario_atual
-from models import ItemNome, PrazoEtapaUpdate
+from models import ItemNome, PrazoEtapaUpdate, PrazoValidacaoUpdate
+from services.status import invalidar_cache_prazos
 
 router = APIRouter(prefix="/config", tags=["Configurações"])
 
@@ -43,6 +44,34 @@ def listar_prazos(u=Depends(get_usuario_atual)):
     db = get_db()
     fixos = db.table("prazos_etapas").select("*").execute().data
     return {"fixos": fixos}
+
+
+@router.get("/prazos-validacao")
+def listar_prazos_validacao(u=Depends(get_usuario_atual)):
+    """Retorna o prazo de validação (d.u.) de cada demanda ativa."""
+    db = get_db()
+    demandas = db.table("demandas").select("id,nome").eq("ativo", True).order("nome").execute().data
+    prazos   = db.table("prazos_validacao").select("demanda_id,dias_uteis").execute().data
+    prazo_map = {p["demanda_id"]: p["dias_uteis"] for p in prazos}
+    return [
+        {"demanda_id": d["id"], "nome": d["nome"], "dias_uteis": prazo_map.get(d["id"], 5)}
+        for d in demandas
+    ]
+
+
+@router.put("/prazos-validacao/{demanda_id}")
+def atualizar_prazo_validacao(demanda_id: int, body: PrazoValidacaoUpdate, admin=Depends(require_admin)):
+    """Atualiza (ou cria) o prazo de validação para uma demanda."""
+    if body.dias_uteis < 1 or body.dias_uteis > 365:
+        raise HTTPException(status_code=400, detail="Prazo deve ser entre 1 e 365 dias úteis")
+    db = get_db()
+    existe = db.table("prazos_validacao").select("demanda_id").eq("demanda_id", demanda_id).execute()
+    if existe.data:
+        db.table("prazos_validacao").update({"dias_uteis": body.dias_uteis}).eq("demanda_id", demanda_id).execute()
+    else:
+        db.table("prazos_validacao").insert({"demanda_id": demanda_id, "dias_uteis": body.dias_uteis}).execute()
+    invalidar_cache_prazos()
+    return {"ok": True}
 
 
 # ── Configuração de etapas por demanda (workflow) ─────────────────────────────

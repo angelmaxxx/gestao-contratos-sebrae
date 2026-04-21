@@ -19,11 +19,19 @@
             padding:4px 10px; font-size:12px; }
     .chip button { background:none; border:none; cursor:pointer; color:#C00000;
                    font-size:14px; line-height:1; padding:0; }
-    .prazo-row { display:flex; align-items:center; gap:12px;
-                 padding:10px 0; border-bottom:1px solid #EEE; }
-    .prazo-row label { flex:1; font-weight:600; font-size:13px; }
-    .prazo-row input { width:80px; border:1px solid #ccc; border-radius:4px;
-                       padding:5px 8px; font-size:13px; text-align:center; }
+    .prazo-row { display:flex; align-items:center; gap:14px;
+                 padding:14px 12px; border-bottom:1px solid #F0F0F0;
+                 border-radius:6px; transition:background .15s; }
+    .prazo-row:hover { background:#F8FBFF; }
+    .prazo-row:last-child { border-bottom:none; }
+    .prazo-row .prazo-icon { font-size:18px; width:28px; text-align:center; }
+    .prazo-row label { flex:1; font-weight:600; font-size:13px; color:#333; }
+    .prazo-row input { width:72px; border:2px solid #AED6F1; border-radius:6px;
+                       padding:6px 8px; font-size:15px; font-weight:700;
+                       text-align:center; color:var(--azul-sebrae);
+                       background:#EBF5FB; outline:none; }
+    .prazo-row input:focus { border-color:var(--azul-sebrae); background:#fff; }
+    .prazo-row .prazo-label { font-size:11px; color:#888; white-space:nowrap; }
     .matriz-table th, .matriz-table td { padding:5px 8px; font-size:11px; text-align:center; border:1px solid #ddd; }
     .matriz-table th { background:var(--azul-sebrae); color:#fff; white-space:nowrap; }
     .matriz-table td:first-child { text-align:left; font-weight:600; background:#f9f9f9; white-space:nowrap; }
@@ -61,7 +69,8 @@
     <div class="tab active" onclick="mudarTab('unidades')">🏢 Unidades</div>
     <div class="tab" onclick="mudarTab('atribuidos')">👤 Atribuídos</div>
     <div class="tab" onclick="mudarTab('distribuidores')">📤 Distribuidores</div>
-    <div class="tab" onclick="mudarTab('prazos')">⏱ Prazos</div>
+    <div class="tab" onclick="mudarTab('prazos')">⏱ Prazos Etapas</div>
+    <div class="tab" onclick="mudarTab('prazos-validacao')">📋 Prazos Validação</div>
     <div class="tab" onclick="mudarTab('matriz')">📊 Demandas × Etapas</div>
   </div>
 
@@ -97,16 +106,60 @@
 
   <!-- Tab: Prazos -->
   <div id="tab-prazos" class="tab-content">
-    <div class="form-card" style="max-width:480px">
+    <div class="form-card" style="max-width:520px">
       <div class="form-section-title">⏱ Prazos Fixos por Etapa (dias úteis)</div>
       <div class="form-body">
-        <div class="alert alert-info" style="margin-bottom:12px">
-          ℹ Os prazos de <strong>Validação</strong> são configurados por tipo de demanda
-          na aba <em>Demandas × Etapas</em>. Aqui ficam os prazos fixos das demais etapas.
+
+        <div style="background:#EBF5FB;border-left:4px solid #2196F3;border-radius:6px;
+                    padding:12px 16px;margin-bottom:20px;font-size:12px;color:#333;line-height:1.6">
+          <strong style="color:#1565C0">ℹ Informação</strong><br>
+          Os prazos de <strong>Validação</strong> variam por tipo de demanda e são configurados
+          na aba <strong>Demandas × Etapas</strong>.<br>
+          Aqui você define os prazos fixos das demais etapas do processo.
         </div>
+
         <div id="lista-prazos"></div>
-        <div style="margin-top:14px;text-align:right">
+
+        <div style="margin-top:18px;text-align:right;border-top:1px solid #eee;padding-top:14px">
           <button class="btn btn-success" onclick="salvarPrazos()">💾 Salvar Prazos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Prazos de Validação por Demanda -->
+  <div id="tab-prazos-validacao" class="tab-content">
+    <div class="form-card" style="max-width:680px">
+      <div class="form-section-title">📋 Prazos de Validação por Tipo de Demanda (dias úteis)</div>
+      <div class="form-body">
+        <div style="background:#EBF5FB;border-left:4px solid #2196F3;border-radius:6px;
+                    padding:12px 16px;margin-bottom:20px;font-size:12px;color:#333;line-height:1.6">
+          <strong style="color:#1565C0">ℹ Informação</strong><br>
+          Define quantos dias úteis cada tipo de demanda tem para passar pela etapa de <strong>Validação</strong>.
+          Edite o valor e clique em <strong>💾</strong> para salvar individualmente,
+          ou use <strong>💾 Salvar Todos</strong> para gravar todas as alterações de uma vez.
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input type="text" id="filtro-prazos-val" placeholder="🔍 Filtrar demanda..."
+                 oninput="filtrarPrazosValidacao()"
+                 style="border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:12px;width:220px">
+          <button class="btn btn-success btn-sm" onclick="salvarTodosPrazosValidacao()">💾 Salvar Todos</button>
+        </div>
+
+        <div style="overflow-y:auto;max-height:520px;border:1px solid #e0e0e0;border-radius:6px">
+          <table style="width:100%;border-collapse:collapse" id="tabela-prazos-val">
+            <thead>
+              <tr style="background:var(--azul-sebrae);color:#fff;position:sticky;top:0;z-index:1">
+                <th style="padding:10px 14px;text-align:left;font-size:12px">Tipo de Demanda</th>
+                <th style="padding:10px 14px;text-align:center;font-size:12px;width:130px">Dias Úteis</th>
+                <th style="padding:10px 14px;text-align:center;font-size:12px;width:70px">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-prazos-val">
+              <tr><td colspan="3" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -171,13 +224,14 @@
 
   function mudarTab(nome) {
     document.querySelectorAll(".tab").forEach((t,i) => {
-      const ids = ["unidades","atribuidos","distribuidores","prazos","matriz"];
+      const ids = ["unidades","atribuidos","distribuidores","prazos","prazos-validacao","matriz"];
       t.classList.toggle("active", ids[i] === nome);
     });
     document.querySelectorAll(".tab-content").forEach(c => {
       c.classList.toggle("active", c.id === `tab-${nome}`);
     });
     if (nome === "matriz") carregarMatriz();
+    if (nome === "prazos-validacao") carregarPrazosValidacao();
   }
 
   // ── Listas (Chips) ──────────────────────────────────────────
@@ -232,12 +286,17 @@
     ASSINATURA:   "Assinatura",   CADASTRO:  "Cadastro",
   };
 
+  const ETAPA_ICON = {
+    DISTRIBUICAO: "📤", JURIDICO: "⚖️", ASSINATURA: "✍️", CADASTRO: "📋"
+  };
+
   function renderPrazos(fixos) {
     document.getElementById("lista-prazos").innerHTML = fixos.map(p => `
       <div class="prazo-row">
+        <span class="prazo-icon">${ETAPA_ICON[p.etapa] || "⏱"}</span>
         <label>${ETAPA_NOME[p.etapa] || p.etapa}</label>
         <input type="number" id="prazo-${p.etapa}" value="${p.dias_uteis}" min="1" max="90">
-        <span style="font-size:12px;color:#666">dias úteis</span>
+        <span class="prazo-label">dias úteis</span>
       </div>`).join("");
   }
 
@@ -250,6 +309,101 @@
       }));
       toast("Prazos salvos com sucesso!", "success");
     } catch (e) { toast("Erro ao salvar prazos: " + e.message, "error"); }
+  }
+
+  // ── Prazos de Validação por Demanda ─────────────────────────
+
+  let _prazosValidacaoData = [];
+
+  async function carregarPrazosValidacao() {
+    const tb = document.getElementById("tbody-prazos-val");
+    tb.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>`;
+    try {
+      _prazosValidacaoData = await api.prazosValidacao();
+      renderPrazosValidacao(_prazosValidacaoData);
+    } catch (e) {
+      tb.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:16px;color:#C00">Erro: ${e.message}</td></tr>`;
+    }
+  }
+
+  function renderPrazosValidacao(lista) {
+    const tb = document.getElementById("tbody-prazos-val");
+    if (!lista.length) {
+      tb.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:24px;color:#999">Nenhuma demanda encontrada.</td></tr>`;
+      return;
+    }
+    tb.innerHTML = lista.map((p, i) => `
+      <tr style="border-bottom:1px solid #f0f0f0;transition:background .12s" onmouseover="this.style.background='#F8FBFF'" onmouseout="this.style.background=''">
+        <td style="padding:9px 14px;font-size:12px;font-weight:500;color:#333">${p.nome}</td>
+        <td style="padding:9px 14px;text-align:center">
+          <input type="number" id="pv-${p.demanda_id}" value="${p.dias_uteis}"
+                 min="1" max="365" data-original="${p.dias_uteis}"
+                 oninput="marcarAlterado(${p.demanda_id})"
+                 style="width:70px;border:2px solid #AED6F1;border-radius:6px;padding:5px 8px;
+                        font-size:14px;font-weight:700;text-align:center;color:var(--azul-sebrae);
+                        background:#EBF5FB;outline:none">
+          <span style="font-size:11px;color:#888;margin-left:4px">d.u.</span>
+        </td>
+        <td style="padding:9px 14px;text-align:center">
+          <button onclick="salvarPrazoValidacao(${p.demanda_id})"
+                  id="btn-pv-${p.demanda_id}"
+                  title="Salvar este prazo"
+                  style="background:none;border:none;cursor:pointer;font-size:18px;opacity:.4"
+                  title="Salvar">💾</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  function filtrarPrazosValidacao() {
+    const q = document.getElementById("filtro-prazos-val").value.trim().toLowerCase();
+    const filtrado = q ? _prazosValidacaoData.filter(p => p.nome.toLowerCase().includes(q)) : _prazosValidacaoData;
+    renderPrazosValidacao(filtrado);
+  }
+
+  function marcarAlterado(did) {
+    const inp = document.getElementById(`pv-${did}`);
+    const btn = document.getElementById(`btn-pv-${did}`);
+    if (!inp || !btn) return;
+    const mudou = String(inp.value) !== String(inp.dataset.original);
+    inp.style.borderColor = mudou ? "#FF9800" : "#AED6F1";
+    inp.style.background  = mudou ? "#FFF8E1" : "#EBF5FB";
+    btn.style.opacity     = mudou ? "1" : ".4";
+  }
+
+  async function salvarPrazoValidacao(demanda_id) {
+    const inp = document.getElementById(`pv-${demanda_id}`);
+    const dias = parseInt(inp.value);
+    if (!dias || dias < 1) { toast("Prazo deve ser pelo menos 1 dia útil.", "error"); return; }
+    try {
+      await api.atualizarPrazoValidacao(demanda_id, dias);
+      inp.dataset.original = String(dias);
+      marcarAlterado(demanda_id);
+      // Atualiza o array local
+      const item = _prazosValidacaoData.find(p => p.demanda_id === demanda_id);
+      if (item) item.dias_uteis = dias;
+      toast("Prazo salvo!", "success");
+    } catch (e) { toast("Erro ao salvar: " + e.message, "error"); }
+  }
+
+  async function salvarTodosPrazosValidacao() {
+    const alterados = _prazosValidacaoData.filter(p => {
+      const inp = document.getElementById(`pv-${p.demanda_id}`);
+      return inp && String(inp.value) !== String(inp.dataset.original);
+    });
+    if (!alterados.length) { toast("Nenhuma alteração para salvar.", "error"); return; }
+    try {
+      await Promise.all(alterados.map(p => {
+        const dias = parseInt(document.getElementById(`pv-${p.demanda_id}`).value);
+        return api.atualizarPrazoValidacao(p.demanda_id, dias);
+      }));
+      // Atualiza originals
+      alterados.forEach(p => {
+        const inp = document.getElementById(`pv-${p.demanda_id}`);
+        if (inp) { inp.dataset.original = inp.value; marcarAlterado(p.demanda_id); }
+        p.dias_uteis = parseInt(document.getElementById(`pv-${p.demanda_id}`)?.value || p.dias_uteis);
+      });
+      toast(`${alterados.length} prazo(s) salvo(s) com sucesso!`, "success");
+    } catch (e) { toast("Erro ao salvar: " + e.message, "error"); }
   }
 
   // ── Matriz Demanda × Etapa ──────────────────────────────────

@@ -117,7 +117,12 @@ const api = {
   atribuidos:     () => apiFetch("/config/atribuidos"),
   demandas:       () => apiFetch("/config/demandas"),
   garantias:      () => apiFetch("/config/garantias"),
-  prazos:         () => apiFetch("/config/prazos"),
+  prazos:              () => apiFetch("/config/prazos"),
+  prazosValidacao:     () => apiFetch("/config/prazos-validacao"),
+  atualizarPrazoValidacao: (demanda_id, dias_uteis) =>
+    apiFetch(`/config/prazos-validacao/${demanda_id}`, {
+      method: "PUT", body: JSON.stringify({ dias_uteis })
+    }),
   etapasDemanda:  (id) => apiFetch(`/config/demandas/${id}/etapas`),
   criarDemanda:   (data) =>
     apiFetch("/config/demandas", { method: "POST", body: JSON.stringify(data) }),
