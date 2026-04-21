@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
 from auth import require_admin, get_usuario_atual
 from models import ItemNome, PrazoEtapaUpdate, PrazoValidacaoUpdate
-from services.status import invalidar_cache_prazos
 
 router = APIRouter(prefix="/config", tags=["Configurações"])
 
@@ -62,6 +61,7 @@ def listar_prazos_validacao(u=Depends(get_usuario_atual)):
 @router.put("/prazos-validacao/{demanda_id}")
 def atualizar_prazo_validacao(demanda_id: int, body: PrazoValidacaoUpdate, admin=Depends(require_admin)):
     """Atualiza (ou cria) o prazo de validação para uma demanda."""
+    from services.status import invalidar_cache_prazos
     if body.dias_uteis < 1 or body.dias_uteis > 365:
         raise HTTPException(status_code=400, detail="Prazo deve ser entre 1 e 365 dias úteis")
     db = get_db()
