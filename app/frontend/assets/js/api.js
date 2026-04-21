@@ -2,11 +2,9 @@
    API — cliente centralizado para o backend FastAPI
    ============================================================ */
 
-// Em produção, troque pela URL do seu backend no Koyeb:
-// const API_BASE = "https://SEU-APP.koyeb.app/api";
 const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "/api"
-  : "https://SEU-APP.koyeb.app/api";
+  : "https://gestao-contratos-sebrae.onrender.com/api";
 
 function getToken() {
   return localStorage.getItem("token");
