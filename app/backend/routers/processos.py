@@ -4,7 +4,7 @@ from database import get_db
 from auth import get_usuario_atual, require_admin
 from models import ProcessoCreate, ProcessoUpdate, ResolverEtapasRequest
 from services.workflow import resolver_etapas, aplicar_nao_aplica
-from services.status import calcular_processo_completo
+from services.status import calcular_processo_completo, invalidar_cache_prazos
 
 router = APIRouter(prefix="/processos", tags=["Processos"])
 
@@ -179,6 +179,7 @@ def criar_processo(body: ProcessoCreate, u=Depends(get_usuario_atual)):
     dados["criado_por"] = u["id"]
     res = db.table("processos").insert(dados).execute()
     invalidar_cache_lookups()
+    invalidar_cache_prazos()
     return res.data[0]
 
 

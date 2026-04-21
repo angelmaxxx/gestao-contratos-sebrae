@@ -85,7 +85,13 @@
         </tr>
       </thead>
       <tbody id="tbody-processos">
-        <tr><td colspan="11" style="text-align:center;padding:24px;color:#999">Carregando…</td></tr>
+        <tr><td colspan="11" class="loading-row">
+          <div class="skeleton-wrap">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line"></div>
+          </div>
+        </td></tr>
       </tbody>
     </table>
   </div>
@@ -126,9 +132,11 @@
   }
 
   async function inicializar() {
-    // Carrega filtros
-    const [atribuidos, unidades, demandas] = await Promise.all([
-      api.atribuidos(), api.unidades(), api.demandas()
+    // Carrega filtros e primeira página de processos em paralelo
+    mostrarSkeleton();
+    const [[atribuidos, unidades, demandas], primeiraRes] = await Promise.all([
+      Promise.all([api.atribuidos(), api.unidades(), api.demandas()]),
+      api.listarProcessos({ page: 1, por_pagina: POR_PAGINA })
     ]);
 
     const selResp = document.getElementById("f-responsavel");
@@ -152,7 +160,21 @@
       selDem.appendChild(o);
     });
 
-    carregar();
+    // Renderiza resultado da primeira página já carregada em paralelo
+    _processos = primeiraRes.data;
+    renderTabela(_processos);
+    renderPaginacao(primeiraRes.page, primeiraRes.por_pagina, _processos.length);
+  }
+
+  function mostrarSkeleton() {
+    const tb = document.getElementById("tbody-processos");
+    const linhas = Array.from({ length: 8 }, (_, i) => `
+      <tr style="opacity:${1 - i * 0.1}">
+        ${Array.from({ length: 11 }, () =>
+          `<td><div class="sk-cell"></div></td>`
+        ).join("")}
+      </tr>`).join("");
+    tb.innerHTML = linhas;
   }
 
   async function carregar() {
@@ -166,12 +188,17 @@
       demanda_id:   document.getElementById("f-demanda").value || null,
     };
 
+    mostrarSkeleton();
     try {
       const res = await api.listarProcessos(params);
       _processos = res.data;
       renderTabela(_processos);
       renderPaginacao(res.page, res.por_pagina, _processos.length);
     } catch (e) {
+      document.getElementById("tbody-processos").innerHTML =
+        `<tr><td colspan="11" style="text-align:center;padding:24px;color:#e74c3c">
+          ⚠ Erro ao carregar processos. Tente novamente.
+        </td></tr>`;
       toast("Erro: " + e.message, "error");
     }
   }

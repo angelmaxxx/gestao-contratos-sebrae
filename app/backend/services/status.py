@@ -14,6 +14,35 @@ REALIZADO_FORA_DO_PRAZO = "REALIZADO FORA DO PRAZO"
 PENDENCIAS              = "PENDÊNCIAS NAS ETAPAS"
 NA                      = "N/A"
 
+# ── Caches de prazos ──────────────────────────────────────────────────────────
+_cache_prazos_fixos: dict | None = None
+_cache_prazos_validacao: dict | None = None   # demanda_id → dias_uteis
+
+
+def _carregar_prazos_fixos(db) -> dict:
+    global _cache_prazos_fixos
+    if _cache_prazos_fixos is None:
+        res = db.table("prazos_etapas").select("*").execute()
+        _cache_prazos_fixos = {r["etapa"]: r["dias_uteis"] for r in res.data}
+    return _cache_prazos_fixos
+
+
+def _carregar_prazos_validacao(db) -> dict:
+    global _cache_prazos_validacao
+    if _cache_prazos_validacao is None:
+        res = db.table("prazos_validacao").select("demanda_id,dias_uteis").execute()
+        _cache_prazos_validacao = {r["demanda_id"]: r["dias_uteis"] for r in res.data}
+    return _cache_prazos_validacao
+
+
+def invalidar_cache_prazos():
+    """Chame quando prazos_etapas ou prazos_validacao forem alterados."""
+    global _cache_prazos_fixos, _cache_prazos_validacao
+    _cache_prazos_fixos = None
+    _cache_prazos_validacao = None
+
+
+# ── Lógica de status ──────────────────────────────────────────────────────────
 
 def status_etapa(
     prev_fim: Optional[date],
@@ -71,27 +100,22 @@ def calcular_processo_completo(processo: dict, db) -> dict:
     Recebe um processo (dict com campos A:U) e retorna o dict
     enriquecido com todos os campos calculados para a visão Admin.
     Equivalente às colunas V:AV da planilha.
+
+    Os prazos e feriados são carregados via cache (uma única query por
+    ciclo de vida do processo, não por processo).
     """
-    feriados = carregar_feriados(db)
-
-    # Prazos fixos
-    res_prazos = db.table("prazos_etapas").select("*").execute()
-    prazos_fixos = {r["etapa"]: r["dias_uteis"] for r in res_prazos.data}
-
-    # Prazo de validação (variável por demanda)
-    prazo_valid = 5  # fallback
-    if processo.get("demanda_id"):
-        res_pv = db.table("prazos_validacao") \
-                   .select("dias_uteis") \
-                   .eq("demanda_id", processo["demanda_id"]) \
-                   .execute()
-        if res_pv.data:
-            prazo_valid = res_pv.data[0]["dias_uteis"]
+    feriados       = carregar_feriados(db)
+    prazos_fixos   = _carregar_prazos_fixos(db)
+    prazos_valid_m = _carregar_prazos_validacao(db)
 
     prazo_dist = prazos_fixos.get("DISTRIBUICAO", 3)
     prazo_jur  = prazos_fixos.get("JURIDICO",     5)
     prazo_assn = prazos_fixos.get("ASSINATURA",   5)
     prazo_cad  = prazos_fixos.get("CADASTRO",     5)
+
+    # Prazo de validação (variável por demanda — lido do cache)
+    demanda_id  = processo.get("demanda_id")
+    prazo_valid = prazos_valid_m.get(demanda_id, 5) if demanda_id else 5
 
     # Datas de entrada
     data_entrada        = _parse_date(processo.get("data_entrada"))

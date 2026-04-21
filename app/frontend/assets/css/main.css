@@ -434,6 +434,21 @@ tr.no-prazo   td { }
 .paginacao button.active { background: var(--azul-btn); color: #fff; border-color: var(--azul-btn); }
 .paginacao button:disabled { opacity: .4; cursor: default; }
 
+/* ── Skeleton Loading ── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.sk-cell {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  width: 80%;
+}
+.sk-cell:nth-child(even) { width: 60%; }
+
 /* ── Login ── */
 .login-container {
   min-height: 100vh;
