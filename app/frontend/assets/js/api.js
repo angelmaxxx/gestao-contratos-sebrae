@@ -6,34 +6,83 @@ const API_BASE = window.location.hostname === "localhost" || window.location.hos
   ? "/api"
   : "https://gestao-contratos-sebrae.onrender.com/api";
 
+const IS_RENDER = !["localhost","127.0.0.1"].includes(window.location.hostname);
+
 function getToken() {
   return localStorage.getItem("token");
 }
 
-async function apiFetch(path, options = {}) {
+/* ── Banner de "servidor acordando" ──────────────────────────────────────── */
+let _wakeupBanner = null;
+function _mostrarAcordando() {
+  if (_wakeupBanner) return;
+  _wakeupBanner = document.createElement("div");
+  _wakeupBanner.id = "banner-acordando";
+  _wakeupBanner.style.cssText =
+    "position:fixed;top:0;left:0;right:0;z-index:9999;background:#1565C0;color:#fff;" +
+    "text-align:center;padding:10px;font-size:13px;font-weight:600;" +
+    "box-shadow:0 2px 8px rgba(0,0,0,.3)";
+  _wakeupBanner.innerHTML =
+    "⏳ Servidor acordando (pode levar até 40 s na primeira vez)… Aguarde, a página carregará automaticamente.";
+  document.body.prepend(_wakeupBanner);
+}
+function _removerAcordando() {
+  if (_wakeupBanner) { _wakeupBanner.remove(); _wakeupBanner = null; }
+}
+
+/* ── Fetch com retry automático (para cold start do Render) ──────────────── */
+async function apiFetch(path, options = {}, _tentativa = 1) {
   const token = getToken();
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(API_BASE + path, { ...options, headers });
+  const MAX_TENTATIVAS = 5;          // tenta até 5 vezes
+  const DELAYS = [3000, 6000, 10000, 15000]; // esperas entre tentativas
 
-  if (res.status === 401) {
-    localStorage.clear();
-    window.location.href = "/";
-    return;
+  try {
+    const res = await fetch(API_BASE + path, { ...options, headers });
+    _removerAcordando();
+
+    if (res.status === 401) {
+      localStorage.clear();
+      window.location.href = "/";
+      return;
+    }
+
+    const data = res.headers.get("content-type")?.includes("application/json")
+      ? await res.json()
+      : await res.text();
+
+    if (!res.ok) {
+      const msg = data?.detail || data || `Erro ${res.status}`;
+      throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    }
+    return data;
+
+  } catch (err) {
+    // Só faz retry em erros de rede ("Failed to fetch"), não em erros HTTP
+    const ehErroDeRede = err instanceof TypeError && err.message.toLowerCase().includes("fetch");
+
+    if (ehErroDeRede && IS_RENDER && _tentativa < MAX_TENTATIVAS) {
+      _mostrarAcordando();
+      const delay = DELAYS[_tentativa - 1] ?? 15000;
+      await new Promise(r => setTimeout(r, delay));
+      return apiFetch(path, options, _tentativa + 1);
+    }
+
+    _removerAcordando();
+    throw err;
   }
-
-  const data = res.headers.get("content-type")?.includes("application/json")
-    ? await res.json()
-    : await res.text();
-
-  if (!res.ok) {
-    const msg = data?.detail || data || `Erro ${res.status}`;
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
-  }
-  return data;
 }
 
+/* ── Keep-alive: pinga o servidor a cada 12 min para evitar hibernação ───── */
+if (IS_RENDER) {
+  setInterval(() => {
+    fetch(API_BASE + "/auth/ping").catch(() => {});
+  }, 12 * 60 * 1000); // 12 minutos
+}
+
+/* ── API pública ─────────────────────────────────────────────────────────── */
 const api = {
   // Auth
   login: (login, senha) =>

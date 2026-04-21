@@ -6,6 +6,12 @@ from models import LoginRequest, TokenResponse
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
+@router.get("/ping")
+def ping():
+    """Endpoint leve para keep-alive — evita hibernação do servidor gratuito."""
+    return {"ok": True}
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
     db = get_db()
